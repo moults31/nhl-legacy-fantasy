@@ -1,0 +1,13 @@
+[package]
+name = "roster-container"
+description = "NHL Legacy roster save container (RosterFile) pack/unpack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flate2 = "1.1"
+thiserror = "2.0"
+
+[dev-dependencies]
+sha2 = "0.10"
