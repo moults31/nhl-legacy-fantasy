@@ -92,7 +92,6 @@ Unpacked Legacy roster `default.db` files do **not** contain literal `ubPc` / `k
 
 ## Next steps
 
-1. M5 operator test **M5MCT01** — edited repack (McTavish Anaheim via `WBbd` write + `pack_with_field_0x2c`)
-2. Reverse `@0x2c` upper-16 algorithm (remove reference-save requirement for edited pack)
-3. Match game zlib params for byte-identical edited repack (optional)
-4. Semantic JSON export/import (M4)
+1. M5 operator test **M5MCT01** — **blocked** on game-identical deflate (`pack_xbox_save` RE)
+2. Reverse `@0x2c` upper-16 algorithm (may be coupled to deflate bitstream)
+3. Semantic JSON export/import (M4) — see [M4-SEMANTIC.md](M4-SEMANTIC.md)

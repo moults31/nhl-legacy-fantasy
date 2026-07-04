@@ -1,0 +1,15 @@
+[package]
+name = "roster-semantic"
+description = "JSON export/import for NHL Legacy roster TDB semantics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ea-tdb = { path = "../ea-tdb" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[dev-dependencies]
+roster-container = { path = "../roster-container" }
