@@ -1,6 +1,6 @@
 //! Patch a bit-packed field and reseal TDB CRCs.
 
-use ea_tdb::{reseal_checksums, verify_checksums, Endian, TdbFile};
+use ea_tdb::{reseal_checksums, verify_checksums, TdbFile};
 
 #[test]
 fn write_field_round_trip_and_reseal_self_verifies() {

@@ -20,7 +20,7 @@ pub enum Platform {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RosterHeader {
     pub platform: Platform,
-    /// Checksum at offset 0x10 (algorithm TBD — see milestone 2).
+    /// Checksum at offset 0x10 (IEEE reflected CRC-32 over `[0x1c .. end)`).
     pub checksum: u32,
     /// Field at 0x14, observed as 4 on live saves.
     pub field_0x14: u32,
@@ -32,7 +32,7 @@ pub struct RosterHeader {
     pub field_0x20: u32,
     /// Uncompressed TDB size (big-endian u32 at 0x24 on observed saves).
     pub uncompressed_size: u32,
-    /// Field at 0x28.
+    /// Secondary checksum at 0x28 (MSB-first CRC-32 over `[0x2c .. end)`).
     pub field_0x28: u32,
     /// Field at 0x2C.
     pub field_0x2c: u32,
