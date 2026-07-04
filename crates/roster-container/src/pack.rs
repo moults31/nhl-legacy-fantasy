@@ -1,7 +1,3 @@
-use flate2::write::ZlibEncoder;
-use flate2::Compression;
-use std::io::Write;
-
 use crate::container_checksum;
 use crate::error::{Error, Result};
 use crate::format::{Platform, RosterHeader, XBOX360_HEADER_SIZE};
@@ -57,13 +53,45 @@ pub fn pack_unchanged(db: &[u8], template: &[u8]) -> Result<Vec<u8>> {
 }
 
 fn compress_zlib(data: &[u8]) -> Result<Vec<u8>> {
-    // Legacy lists/loads saves with standard zlib (`78 9c`). `Compression::new(0)` emits a
-    // non-standard wrapper (`08 1d`) that fails our unpack and does not appear in-game.
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-    encoder
-        .write_all(data)
-        .map_err(Error::Compress)?;
-    encoder.finish().map_err(Error::Compress)
+    // Game saves are ~1:1 under `78 9c` (~2.45 MB). Default flate2 (~818 KB) fails load
+    // (M5ANA01 / M5MCT01). flate2 level 0 emits `08 1d`, not zlib `78 01`. Build stored
+    // deflate blocks under a standard `78 9c` wrapper instead (~2.456 MB on testroster.db).
+    Ok(compress_zlib_stored_blocks(data))
+}
+
+/// Zlib stream: `78 9c` + stored deflate blocks + Adler-32 (BE).
+fn compress_zlib_stored_blocks(data: &[u8]) -> Vec<u8> {
+    let chunk_count = data.len().div_ceil(65_535);
+    let mut out = Vec::with_capacity(6 + data.len() + chunk_count * 5);
+    out.extend_from_slice(&[0x78, 0x9c]);
+
+    let mut pos = 0;
+    while pos < data.len() {
+        let end = (pos + 65_535).min(data.len());
+        let chunk = &data[pos..end];
+        pos = end;
+        let is_final = pos >= data.len();
+        // Stored block header (byte-aligned): final bit + type `00`.
+        out.push(u8::from(is_final));
+        let len = chunk.len() as u16;
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&(!len).to_le_bytes());
+        out.extend_from_slice(chunk);
+    }
+
+    out.extend_from_slice(&adler32_zlib(data).to_be_bytes());
+    out
+}
+
+fn adler32_zlib(data: &[u8]) -> u32 {
+    const MOD: u32 = 65521;
+    let mut a = 1u32;
+    let mut b = 0u32;
+    for &byte in data {
+        a = (a + u32::from(byte)) % MOD;
+        b = (b + a) % MOD;
+    }
+    (b << 16) | a
 }
 
 /// Like [`pack`], but supplies `@0x2c` explicitly for edited payloads.
@@ -160,8 +188,12 @@ mod tests {
             compressed[0],
             compressed[1]
         );
-        // Game saves are ~1:1; default flate2 is ~800 KB and may fail load (M5ANA01).
-        // Listing requires valid `78 9c` first — see M5MCT01 install notes.
-        assert!(compressed.len() > 100_000, "compressed payload too small");
+        assert!(
+            compressed.len() > 2_000_000,
+            "game near-stored payloads are ~2.45 MB, got {}",
+            compressed.len()
+        );
+        let round_trip = crate::unpack::decompress_zlib(&compressed).expect("round-trip decompress");
+        assert_eq!(round_trip, db);
     }
 }

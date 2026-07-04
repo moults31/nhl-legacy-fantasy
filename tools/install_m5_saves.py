@@ -81,6 +81,18 @@ def install_save(base: Path, template_header: bytes, install: SaveInstall) -> Pa
     return blob_dir
 
 
+def remove_save(base: Path, install: SaveInstall) -> None:
+    folder_name = f"ROSTER {install.timestamp}"
+    blob_dir = base / "00000001" / folder_name
+    blob_path = blob_dir / folder_name
+    header_path = base / "Headers" / "00000001" / f"{folder_name}.header"
+    for path in (blob_path, header_path):
+        if path.is_file():
+            path.unlink()
+    if blob_dir.is_dir() and not any(blob_dir.iterdir()):
+        blob_dir.rmdir()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -88,6 +100,12 @@ def main() -> None:
         action="append",
         metavar="NAME",
         help="Install only these display names (repeatable)",
+    )
+    parser.add_argument(
+        "--remove",
+        action="append",
+        metavar="NAME",
+        help="Remove installed saves by display name (unblocks title screen if damaged)",
     )
     args = parser.parse_args()
 
@@ -99,24 +117,35 @@ def main() -> None:
         "steamuser/Documents/nhllegacy/B13EBABEBABEBABE/454109EC"
     )
 
-    installs = DEFAULT_INSTALLS
-    if args.only:
-        wanted = set(args.only)
-        installs = [item for item in installs if item.display_name in wanted]
+    by_name = {item.display_name: item for item in DEFAULT_INSTALLS}
 
-    for item in installs:
-        blob = staging / item.blob
-        if not blob.is_file():
-            raise SystemExit(f"missing blob: {blob}")
-        verify_blob(blob)
-        install = SaveInstall(
-            display_name=item.display_name,
-            timestamp=item.timestamp,
-            blob=blob,
-            trailer_id=item.trailer_id,
-        )
-        dest = install_save(base, template_header, install)
-        print(f"installed {item.display_name} -> {dest}")
+    if args.remove:
+        for name in args.remove:
+            item = by_name.get(name)
+            if item is None:
+                raise SystemExit(f"unknown save name: {name}")
+            remove_save(base, item)
+            print(f"removed {name}")
+
+    if not args.remove or args.only:
+        installs = DEFAULT_INSTALLS
+        if args.only:
+            wanted = set(args.only)
+            installs = [item for item in installs if item.display_name in wanted]
+
+        for item in installs:
+            blob = staging / item.blob
+            if not blob.is_file():
+                raise SystemExit(f"missing blob: {blob}")
+            verify_blob(blob)
+            install = SaveInstall(
+                display_name=item.display_name,
+                timestamp=item.timestamp,
+                blob=blob,
+                trailer_id=item.trailer_id,
+            )
+            dest = install_save(base, template_header, install)
+            print(f"installed {item.display_name} -> {dest}")
 
 
 def verify_blob(blob: Path) -> None:
@@ -127,6 +156,10 @@ def verify_blob(blob: Path) -> None:
         raise SystemExit(
             f"{blob}: payload must start with zlib 78 9c (got {data[48:50].hex()}); "
             "rebuild with `cargo test -p roster-container build_m5mct01`"
+        )
+    if len(data) < 2_000_000:
+        raise SystemExit(
+            f"{blob}: payload too small ({len(data)} bytes); edited saves need ~2.45 MB near-stored deflate"
         )
 
 

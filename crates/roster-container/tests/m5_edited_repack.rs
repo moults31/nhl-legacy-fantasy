@@ -49,14 +49,12 @@ fn write_mctavish_proteam(db: &mut [u8], team: u64) {
 fn build_m5mct01_edited_repack() {
     let root = fixture_root();
     let testroster = root.join("testroster.bin");
-    let roster1 = root.join("roster1.bin");
-    if !testroster.is_file() || !roster1.is_file() {
+    if !testroster.is_file() {
         eprintln!("skip: McTavish pair not present");
         return;
     }
 
     let test_container = std::fs::read(&testroster).expect("testroster");
-    let roster1_container = std::fs::read(&roster1).expect("roster1");
     let mut db = unpack(&test_container).expect("unpack testroster");
 
     let (_, team_before) = mctavish_proteam(&db).expect("McTavish on STL");
@@ -66,14 +64,16 @@ fn build_m5mct01_edited_repack() {
     let (_, team_after) = mctavish_proteam(&db).expect("McTavish after edit");
     assert_eq!(team_after, 1);
 
-    let h_roster1 = RosterHeader::parse(&roster1_container).expect("roster1 header");
-    let packed = pack_with_field_0x2c(&db, &test_container, h_roster1.field_0x2c)
+    let h_test = RosterHeader::parse(&test_container).expect("testroster header");
+    // Edited DB keeps testroster layout; use testroster @0x2c (roster1 value failed load at ~818 KB).
+    let packed = pack_with_field_0x2c(&db, &test_container, h_test.field_0x2c)
         .expect("pack edited db");
 
     verify_checksums(&packed).expect("sealed checksums");
     assert_eq!(&packed[48..50], [0x78, 0x9c]);
-    eprintln!(
-        "M5MCT01 packed size {} (game near-stored ~2456120; default zlib ~818k — load TBD)",
+    assert!(
+        packed.len() > 2_000_000,
+        "edited save should use near-stored deflate (~2.45 MB), got {}",
         packed.len()
     );
 
