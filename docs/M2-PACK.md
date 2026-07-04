@@ -1,6 +1,6 @@
 # Milestone 2: RosterFile pack and container checksum
 
-This document records the plan for milestone 2 from [PLAN.md](PLAN.md). It is not implemented yet.
+This document records milestone 2 from [PLAN.md](PLAN.md).
 
 ## Goal
 
@@ -9,6 +9,15 @@ Round-trip an unchanged roster save byte-for-byte:
 ```
 pack(unpack(save)) == save
 ```
+
+## Status (2026-07-04)
+
+| Item | Status |
+|------|--------|
+| `pack_unchanged` / unchanged round-trip test | **Done** — byte-identical on fixture |
+| `EaChecksum` Rust port (MC02 path) | **Done** — validated against `EAChecksum.dll` (`[1..=10]` → `0xA1112550`) |
+| `pack()` for edited DBs | **Blocked** — u32 at offset 0x10 algorithm unknown |
+| Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Blocked** on container checksum |
 
 ## Prerequisites
 
@@ -35,7 +44,9 @@ pack(unpack(save)) == save
 
 `EAChecksum.dll` is the feudalnate algorithm used by **`MC02Handler`** for Xbox MC02 save packages. EA DB Editor opens MC02-wrapped content, not raw `RosterFile` blobs.
 
-Initial testing: invoking the real `EAChecksum` DLL (via .NET 8 reflection) over the live Proton `RosterFile` — with checksum zeroed and common slice ranges — did **not** reproduce the u32 at offset 0x10. Do not assume M2 equals a straight EAChecksum over the whole file.
+Initial testing: invoking the real `EAChecksum` DLL over the live Proton `RosterFile` — with checksum zeroed and common slice ranges — did **not** reproduce the u32 at offset 0x10 (fixture checksum `0x3DD83E3D`). Do not assume M2 equals a straight EAChecksum over the whole file.
+
+The Rust `EaChecksum` port in `roster-container` **does** match the reference DLL for MC02/interop; it is not the RosterFile container checksum.
 
 Next steps:
 
@@ -45,8 +56,8 @@ Next steps:
 
 ## Implementation steps
 
-1. Implement `ea_checksum` module in `roster-container` (pure Rust, table embedded or generated from DLL once).
-2. **`pack` API**:
+1. Implement `ea_checksum` module in `roster-container` — **done** (table embedded from DLL; golden test vs .NET 8 reflection).
+2. **`pack` API** — **partial**:
 
    ```rust
    pub fn pack(db: &[u8], template: &RosterHeader) -> Result<Vec<u8>>;

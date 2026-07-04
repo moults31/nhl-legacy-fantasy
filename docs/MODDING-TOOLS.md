@@ -31,7 +31,7 @@ Reverse-engineered from `EAChecksum.dll` via IL inspection:
 - `get_GetHash`: returns `~Last`
 - `get_GetHashBytes`: `BitConverter.GetBytes(hash)` then **byte-reverse** (big-endian on wire)
 
-MC02Handler calls `TransformBlock` (not `TransformFinalBlock`) then reads `get_GetHashBytes`.
+**Validation:** The Rust port in `roster-container` matches `EAChecksum.dll` on .NET 8 (e.g. `[1..=10]` → `0xA1112550`). This is for MC02, not the `RosterFile` u32 at offset 0x10.
 
 ### TDB CRC (milestone 3)
 

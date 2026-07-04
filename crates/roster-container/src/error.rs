@@ -18,4 +18,10 @@ pub enum Error {
 
     #[error("zlib decompression failed: {0}")]
     Decompress(#[from] std::io::Error),
+
+    #[error("zlib compression failed: {0}")]
+    Compress(std::io::Error),
+
+    #[error("roster container checksum algorithm for edited saves is not implemented yet")]
+    ChecksumUnknown,
 }

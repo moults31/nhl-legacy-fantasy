@@ -31,14 +31,14 @@ pub fn unpack_with_header(data: &[u8]) -> Result<(Vec<u8>, RosterHeader)> {
     Ok((db, header))
 }
 
-fn decompress_zlib(compressed: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn decompress_zlib(compressed: &[u8]) -> Result<Vec<u8>> {
     let mut decoder = ZlibDecoder::new(compressed);
     let mut out = Vec::new();
     decoder.read_to_end(&mut out)?;
     Ok(out)
 }
 
-fn validate_tdb_magic(db: &[u8]) -> Result<()> {
+pub(crate) fn validate_tdb_magic(db: &[u8]) -> Result<()> {
     if db.len() < 4 || db[0..2] != TDB_MAGIC {
         let found: [u8; 4] = db
             .get(0..4)
