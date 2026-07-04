@@ -12,4 +12,7 @@ pub enum Error {
 
     #[error("unsupported TDB endian marker {marker}")]
     UnsupportedEndian { marker: u32 },
+
+    #[error("invalid TDB table/field id (expected printable ASCII): {found:?}")]
+    InvalidTableId { found: [u8; 4] },
 }

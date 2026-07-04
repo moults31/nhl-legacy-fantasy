@@ -3,8 +3,23 @@ use crate::error::{Error, Result};
 /// Observed magic for NHL Legacy / NHL 14-era roster TDB payloads.
 pub const TDB_MAGIC: [u8; 4] = *b"DB\0\x08";
 
-/// Minimum bytes required to read the fixed header.
+/// Minimum bytes required to read the fixed header through table count.
 pub const HEADER_SIZE: usize = 0x14;
+
+/// u32 BE at 0x14 — internal header CRC (algorithm TBD).
+pub const HEADER_CRC_OFFSET: usize = 0x14;
+
+/// Directory begins immediately after the header CRC field.
+pub const DIRECTORY_OFFSET: usize = 0x18;
+
+/// Directory row size on observed Legacy roster DBs.
+pub const DIRECTORY_ENTRY_SIZE: usize = 8;
+
+/// Table blob prefix before field descriptors.
+pub const TABLE_HEADER_SIZE: usize = 16;
+
+/// Per-field descriptor size on observed Legacy roster DBs.
+pub const FIELD_DESCRIPTOR_SIZE: usize = 12;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Endian {
@@ -12,7 +27,7 @@ pub enum Endian {
     Big,
 }
 
-/// Parsed fixed TDB header (directory and tables follow).
+/// Parsed fixed TDB header (directory follows at [`DIRECTORY_OFFSET`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TdbHeader {
     pub endian: Endian,
@@ -51,7 +66,7 @@ impl TdbHeader {
     }
 }
 
-fn read_u32_be(data: &[u8], offset: usize) -> u32 {
+pub(crate) fn read_u32_be(data: &[u8], offset: usize) -> u32 {
     u32::from_be_bytes(data[offset..offset + 4].try_into().expect("slice length"))
 }
 
