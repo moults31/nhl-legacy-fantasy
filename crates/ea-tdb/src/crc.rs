@@ -21,8 +21,10 @@ impl Crc32Be {
         }
     }
 
-    /// Hash `data[start..start + len]` continuing from `seed`.
-    pub fn crc32_be(&self, seed: u32, data: &[u8], start: u32, len: u32) -> u32 {
+    /// Hash `len` bytes at `start`, continuing from `seed`.
+    ///
+    /// Parameter order matches EA DB Editor `DB_CRC.crc32_be(crc, data, len, start)`.
+    pub fn crc32_be(&self, seed: u32, data: &[u8], len: u32, start: u32) -> u32 {
         let mut crc = seed ^ 0xFFFF_FFFF;
         let mut i = start as usize;
         let mut remaining = len;
@@ -41,7 +43,7 @@ impl Crc32Be {
 
     /// Convenience wrapper over the full slice.
     pub fn hash(&self, data: &[u8]) -> u32 {
-        self.crc32_be(0, data, 0, data.len() as u32)
+        self.crc32_be(0, data, data.len() as u32, 0)
     }
 }
 
@@ -81,6 +83,6 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/tests/fixtures/tdb_header.bin"
         ));
-        assert_eq!(crc.crc32_be(0, db, 0, 64), 0xD547_5005);
+        assert_eq!(crc.crc32_be(0, db, 64, 0), 0xD547_5005);
     }
 }

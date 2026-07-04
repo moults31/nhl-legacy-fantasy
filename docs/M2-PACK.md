@@ -16,7 +16,8 @@ pack(unpack(save)) == save
 |------|--------|
 | `pack_unchanged` / unchanged round-trip test | **Done** — byte-identical on fixture |
 | `EaChecksum` Rust port (MC02 path) | **Done** — validated against `EAChecksum.dll` (`[1..=10]` → `0xA1112550`) |
-| `pack()` for edited DBs | **Blocked** — u32 at offset 0x10 algorithm unknown |
+| `pack()` for edited DBs | **Blocked** — u32 @ 0x10 and 0x28 algorithms unknown |
+| Discovery harness | **Done** — `crates/roster-container/tests/checksum_discover.rs` |
 | Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Blocked** on container checksum |
 
 ## Prerequisites
@@ -30,29 +31,42 @@ pack(unpack(save)) == save
 | Offset | Size | Field | Notes |
 |--------|------|-------|-------|
 | 0x00 | 16 | magic | `RosterFile\0` + padding |
-| 0x10 | 4 | checksum | u32 BE; algorithm **TBD** (see below) |
-| 0x14 | 4 | field_0x14 | u32 BE; observed `4` |
+| 0x10 | 4 | checksum_primary | u32 BE; changes on edit; algorithm **TBD** |
+| 0x14 | 4 | field_0x14 | u32 BE; observed `4` (container version) |
 | 0x18 | 4 | field_0x18 | u32 BE; observed `0` |
 | 0x1C | 4 | field_0x1c | u32 BE; observed `1` |
-| 0x20 | 4 | field_0x20 | u32 BE; observed `2` |
+| 0x20 | 4 | field_0x20 | u32 BE; observed `1` on Legacy saves (`2` on older fixture) |
 | 0x24 | 4 | uncompressed_size | u32 BE; equals TDB byte length |
-| 0x28 | 4 | field_0x28 | u32 BE; TBD |
-| 0x2C | 4 | field_0x2c | u32 BE; TBD |
+| 0x28 | 4 | checksum_secondary | u32 BE; also changes on edit; likely “second header checksum” per Modding Studio notes |
+| 0x2C | 4 | field_0x2c | u32 BE; upper 16 bits vary; lower 16 often `0x0C00` on Legacy saves |
 | 0x30 | rest | zlib payload | standard zlib (`0x78 0x9c`) |
 
 ## Checksum strategy
 
 `EAChecksum.dll` is the feudalnate algorithm used by **`MC02Handler`** for Xbox MC02 save packages. EA DB Editor opens MC02-wrapped content, not raw `RosterFile` blobs.
 
-Initial testing: invoking the real `EAChecksum` DLL over the live Proton `RosterFile` — with checksum zeroed and common slice ranges — did **not** reproduce the u32 at offset 0x10 (fixture checksum `0x3DD83E3D`). Do not assume M2 equals a straight EAChecksum over the whole file.
+### Discovery results (2026-07-04)
 
-The Rust `EaChecksum` port in `roster-container` **does** match the reference DLL for MC02/interop; it is not the RosterFile container checksum.
+Brute-force over `_local/game-saves/xbox/{roster1,testroster}.bin`, `tests/fixtures/xbox/roster.bin`, and the vanilla Modding Studio save (`checksum_discover` integration test):
+
+| Candidate | `@0x10` | `@0x28` |
+|-----------|---------|---------|
+| `EAChecksum` over compressed payload | No | No |
+| `EAChecksum` over uncompressed TDB | No | No |
+| `Crc32Be` (EA DB Editor `crc32_be`) over common slices | No | No |
+| zlib `crc32` / adler32 / u32 sum/xor | No | No |
+
+Both `@0x10` and `@0x28` change between **ROSTER1** and **TESTROSTER**; `@0x2C` low 16 bits stay `0x0C00` on Legacy saves.
+
+**Likely implementation:** NHL Modding Studio embeds `crates/tdb-savedata/src/checksum.rs` in `NHL Modding Studio.exe` (Rust). The portable app itself notes the **“second header checksum”** (NHL 12+, `@0x28`) is **not reverse-engineered**. There is **no source tree** — see [REFERENCE-POLICY.md](REFERENCE-POLICY.md). Reverse the embedded Rust in `NHL Modding Studio.exe` and use the McTavish pair as oracle.
 
 Next steps:
 
-1. **Diff-driven discovery** — mutate single header/payload bytes on a copy, reload in-game or compare against Modding Studio read path to see what invalidates the checksum field.
-2. **Port EAChecksum to Rust anyway** — needed for MC02/interop and as a building block; algorithm summary in [MODDING-TOOLS.md](MODDING-TOOLS.md).
-3. **Cross-check Modding Studio** — portable app read/write path for NHL 12–15 roster saves may document or mirror the Legacy container checksum.
+1. **Binary RE** on `NHL Modding Studio.exe` / `checksum.rs` panic paths — not a source port.
+2. **Validate** with `roster1.bin` / `testroster.bin` — recompute `@0x10` and `@0x28`, then wire into `pack()`.
+3. **M5** — in-game load after first round-trip.
+
+**TDB internal CRCs** (M3) are a separate layer. In-game saves keep stale TDB CRC fields; M2 container checksum is what changes on save.
 
 ## Implementation steps
 

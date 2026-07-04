@@ -73,6 +73,10 @@ pub(crate) fn read_u32_be(data: &[u8], offset: usize) -> u32 {
     u32::from_be_bytes(data[offset..offset + 4].try_into().expect("slice length"))
 }
 
+pub(crate) fn write_u32_be(data: &mut [u8], offset: usize, value: u32) {
+    data[offset..offset + 4].copy_from_slice(&value.to_be_bytes());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

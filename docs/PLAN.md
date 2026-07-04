@@ -14,11 +14,12 @@ Prefer **Rust** for all tools and libraries unless something is clearly better d
 
 ## Inputs we rely on (local, not in git)
 
-See [AGENTS.md](../AGENTS.md). In short:
+See [AGENTS.md](../AGENTS.md), [LOCAL-ARTIFACTS.md](LOCAL-ARTIFACTS.md), and **[REFERENCE-POLICY.md](REFERENCE-POLICY.md)**. Everything lives under **`_local/`** in the checkout. **No upstream source** (Modding Studio, `tdb-savedata`, `tdb-core`) will be provided — port from binaries, IL, and fixtures.
 
 - Modding Studio `defs/` and vanilla roster saves
 - EADBEditor field dictionary (`NHL 14 xml.xml`) and assemblies to reverse for checksums / TDB write
-- A working Legacy install and its Proton save directory for load tests
+- Legacy install (`_local/NHL Legacy Recomp/`) and copied saves (`_local/game-saves/xbox/`)
+- **McTavish edit pair** (`roster1.bin` / `testroster.bin`) for diff-driven TDB and checksum work
 - Recomp tree only as reference for existing TDB experiments
 
 ## Architecture
