@@ -59,7 +59,7 @@ Launch script sets compatdata app id **3623314720** (`_local/NHL Legacy Recomp/l
 
 Both containers unpack to **2 456 076** bytes. McTavish bio text appears in both; **file offsets shift** on in-game save (DB rewrite/reorder). TDB file header CRC @ `0x14` is **unchanged** between the pair on this save — reseal rules TBD.
 
-Container checksums at `RosterFile` offset **0x10** (u32 BE) **do** differ — useful for M2 discovery.
+Container checksums at `RosterFile` offset **0x10** and **0x28** (u32 BE) **both** change between ROSTER1 and TESTROSTER. Offset **0x2C** low 16 bits are often `0x0C00` on Legacy saves. See [M2-PACK.md](M2-PACK.md) for the full 48-byte header map.
 
 ## Vanilla reference save
 

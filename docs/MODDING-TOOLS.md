@@ -46,6 +46,11 @@ Path: `_local/modding-tools/NHL Modding Studio 0.1.0-beta.3 portable/`
 | `defs/` | Confirmed table FKs, enums, relationships (M4) |
 | `vanilla-saves/` | Optional roster test vectors (drop blobs per README there) |
 | `extractor/` | `.big` archive extraction reference |
+| `NHL Modding Studio.exe` | Embeds **`tdb-savedata`** (`checksum.rs`, `pack.rs`, `header.rs`) — **M2 reference** for `RosterFile` pack/write-back |
+
+Modding Studio can `pack_xbox_save` for NHL 12–15/Legacy. The portable exe contains Rust panic paths such as `crates\tdb-savedata\src\checksum.rs` but the source crate is **not** vendored under `_local/`. BETA notes mention a “second header checksum” (NHL 12+) and that Xbox write-back is not fully in-game verified.
+
+For M2, prefer obtaining or porting `tdb-savedata::checksum` rather than guessing from `EAChecksum.dll`.
 
 ## Validation on Linux
 
