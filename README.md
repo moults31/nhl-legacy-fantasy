@@ -8,7 +8,7 @@ This repository is the home for that fantasy layer and the tools that connect it
 
 ## Development setup
 
-See [docs/PLAN.md](docs/PLAN.md) for scope and milestones. Local reference material lives under `_local/` (symlinks documented in [AGENTS.md](AGENTS.md)).
+See [docs/PLAN.md](docs/PLAN.md) for scope and milestones. Local reference material lives under `_local/` (symlinks documented in [AGENTS.md](AGENTS.md)); see [docs/MODDING-TOOLS.md](docs/MODDING-TOOLS.md) for what each bundled tool contributes.
 
 ### Build and test
 
