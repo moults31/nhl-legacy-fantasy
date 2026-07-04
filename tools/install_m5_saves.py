@@ -108,6 +108,7 @@ def main() -> None:
         blob = staging / item.blob
         if not blob.is_file():
             raise SystemExit(f"missing blob: {blob}")
+        verify_blob(blob)
         install = SaveInstall(
             display_name=item.display_name,
             timestamp=item.timestamp,
@@ -116,6 +117,17 @@ def main() -> None:
         )
         dest = install_save(base, template_header, install)
         print(f"installed {item.display_name} -> {dest}")
+
+
+def verify_blob(blob: Path) -> None:
+    data = blob.read_bytes()
+    if len(data) < 50:
+        raise SystemExit(f"{blob}: too small ({len(data)} bytes)")
+    if data[48:50] != b"\x78\x9c":
+        raise SystemExit(
+            f"{blob}: payload must start with zlib 78 9c (got {data[48:50].hex()}); "
+            "rebuild with `cargo test -p roster-container build_m5mct01`"
+        )
 
 
 if __name__ == "__main__":

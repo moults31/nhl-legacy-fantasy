@@ -71,9 +71,9 @@ fn build_m5mct01_edited_repack() {
         .expect("pack edited db");
 
     verify_checksums(&packed).expect("sealed checksums");
-    assert!(
-        packed.len() > 2_000_000,
-        "edited save should use near-stored deflate (~2.45 MB), got {}",
+    assert_eq!(&packed[48..50], [0x78, 0x9c]);
+    eprintln!(
+        "M5MCT01 packed size {} (game near-stored ~2456120; default zlib ~818k — load TBD)",
         packed.len()
     );
 

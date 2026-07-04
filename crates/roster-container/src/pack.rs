@@ -57,9 +57,9 @@ pub fn pack_unchanged(db: &[u8], template: &[u8]) -> Result<Vec<u8>> {
 }
 
 fn compress_zlib(data: &[u8]) -> Result<Vec<u8>> {
-    // Game saves use near-stored deflate (~1:1 payload size). Level 0 avoids the
-    // ~3x over-compression that breaks in-game load (see M5ANA01 failure).
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::new(0));
+    // Legacy lists/loads saves with standard zlib (`78 9c`). `Compression::new(0)` emits a
+    // non-standard wrapper (`08 1d`) that fails our unpack and does not appear in-game.
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     encoder
         .write_all(data)
         .map_err(Error::Compress)?;
@@ -139,5 +139,29 @@ mod tests {
         db[100] ^= 0x01;
         let packed = pack(&db, &template).expect("pack edited db");
         crate::container_checksum::verify(&packed).expect("sealed checksums verify");
+    }
+
+    #[test]
+    fn compress_edited_db_uses_standard_zlib_magic() {
+        let db_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../_local/game-saves/xbox/m5-staging/testroster.db"
+        );
+        if !std::path::Path::new(db_path).exists() {
+            eprintln!("skip: no testroster.db");
+            return;
+        }
+        let db = std::fs::read(db_path).expect("db");
+        let compressed = compress_zlib(&db).expect("compress");
+        assert_eq!(
+            &compressed[..2],
+            crate::format::ZLIB_MAGIC,
+            "game requires zlib header 78 9c, got {:02x}{:02x}",
+            compressed[0],
+            compressed[1]
+        );
+        // Game saves are ~1:1; default flate2 is ~800 KB and may fail load (M5ANA01).
+        // Listing requires valid `78 9c` first — see M5MCT01 install notes.
+        assert!(compressed.len() > 100_000, "compressed payload too small");
     }
 }

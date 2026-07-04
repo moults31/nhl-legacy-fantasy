@@ -75,10 +75,10 @@ Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{r
 Edited repack requirements learned from M5:
 
 1. **Template match** — use the template save whose header metadata matches the payload lineage.
-2. **Near-stored deflate** — `Compression::new(0)` (~2.45 MB); default flate2 (~818 KB) is rejected in-game.
+2. **Near-stored deflate** — game saves are ~1:1 with `78 9c` (~2.45 MB). Default flate2 (~818 KB) may list but can fail load (see M5ANA01). `Compression::new(0)` emits non-standard `08 1d` and is omitted from the load list entirely.
 3. **`@0x2c` override** — upper 16 bits are content-dependent; pass a reference value until the algorithm is reversed (`pack_with_field_0x2c`).
 
-Install helper: `tools/install_m5_saves.py` (optional `--only M5MCT01`).
+Install helper: `tools/install_m5_saves.py` (optional `--only M5MCT01`). **Building the blob alone does not install it** — run the script (or copy blob + `.header` sidecar) before refreshing in-game.
 
 ### Discovery history
 
