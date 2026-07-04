@@ -16,9 +16,11 @@ pack(unpack(save)) == save
 |------|--------|
 | `pack_unchanged` / unchanged round-trip test | **Done** — byte-identical on fixture |
 | `EaChecksum` Rust port (MC02 path) | **Done** — validated against `EAChecksum.dll` (`[1..=10]` → `0xA1112550`) |
-| `pack()` for edited DBs | **Blocked** — u32 @ 0x10 and 0x28 algorithms unknown |
-| Discovery harness | **Done** — `crates/roster-container/tests/checksum_discover.rs` |
-| Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Blocked** on container checksum |
+| Container `@0x10` / `@0x28` checksums | **Done** — reverse-engineered from `NHL Modding Studio.exe` |
+| `pack()` for edited DBs | **Done** — seals both checksums; zlib level may differ from original |
+| Discovery harness | **Done** — `checksum_discover*.rs`, `checksum_oracle.rs` |
+| Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Partial** — checksums correct; byte-identical repack requires matching deflate |
+| M5 in-game load after edit | **Pending** |
 
 ## Prerequisites
 
@@ -31,13 +33,13 @@ pack(unpack(save)) == save
 | Offset | Size | Field | Notes |
 |--------|------|-------|-------|
 | 0x00 | 16 | magic | `RosterFile\0` + padding |
-| 0x10 | 4 | checksum_primary | u32 BE; changes on edit; algorithm **TBD** |
+| 0x10 | 4 | checksum_primary | u32 BE; IEEE reflected CRC-32 over `[0x1c .. end)` |
 | 0x14 | 4 | field_0x14 | u32 BE; observed `4` (container version) |
 | 0x18 | 4 | field_0x18 | u32 BE; observed `0` |
 | 0x1C | 4 | field_0x1c | u32 BE; observed `1` |
 | 0x20 | 4 | field_0x20 | u32 BE; observed `1` on Legacy saves (`2` on older fixture) |
 | 0x24 | 4 | uncompressed_size | u32 BE; equals TDB byte length |
-| 0x28 | 4 | checksum_secondary | u32 BE; also changes on edit; likely “second header checksum” per Modding Studio notes |
+| 0x28 | 4 | checksum_secondary | u32 BE; MSB-first CRC-32 (poly `0x04C11DB7`) over `[0x2c .. end)` |
 | 0x2C | 4 | field_0x2c | u32 BE; upper 16 bits vary; lower 16 often `0x0C00` on Legacy saves |
 | 0x30 | rest | zlib payload | standard zlib (`0x78 0x9c`) |
 
@@ -45,26 +47,24 @@ pack(unpack(save)) == save
 
 `EAChecksum.dll` is the feudalnate algorithm used by **`MC02Handler`** for Xbox MC02 save packages. EA DB Editor opens MC02-wrapped content, not raw `RosterFile` blobs.
 
-### Discovery results (2026-07-04)
+### Algorithm (confirmed 2026-07-04)
 
-Brute-force over `_local/game-saves/xbox/{roster1,testroster}.bin`, `tests/fixtures/xbox/roster.bin`, and the vanilla Modding Studio save (`checksum_discover` integration test):
+Reverse-engineered from `NHL Modding Studio.exe` pack path (`0x140b460d3` / `0x140b4622d` / `0x140b47db0`):
 
-| Candidate | `@0x10` | `@0x28` |
-|-----------|---------|---------|
-| `EAChecksum` over compressed payload | No | No |
-| `EAChecksum` over uncompressed TDB | No | No |
-| `Crc32Be` (EA DB Editor `crc32_be`) over common slices | No | No |
-| zlib `crc32` / adler32 / u32 sum/xor | No | No |
+| Field | Input slice | Primitive | Init | Final |
+|-------|-------------|-----------|------|-------|
+| `@0x10` | `[0x1c .. file_end)` | IEEE reflected CRC-32 | `0xFFFFFFFF` | `!crc` |
+| `@0x28` | `[0x2c .. file_end)` | MSB-first CRC-32 (`0x04C11DB7`) | `0xFFFFFFFF` | `!crc` |
 
-Both `@0x10` and `@0x28` change between **ROSTER1** and **TESTROSTER**; `@0x2C` low 16 bits stay `0x0C00` on Legacy saves.
+Write order: seal `@0x28` first, then `@0x10` (primary input includes the sealed `@0x28` field).
 
-**Likely implementation:** NHL Modding Studio embeds `crates/tdb-savedata/src/checksum.rs` in `NHL Modding Studio.exe` (Rust). The portable app itself notes the **“second header checksum”** (NHL 12+, `@0x28`) is **not reverse-engineered**. There is **no source tree** — see [REFERENCE-POLICY.md](REFERENCE-POLICY.md). Reverse the embedded Rust in `NHL Modding Studio.exe` and use the McTavish pair as oracle.
+Rust: `crates/roster-container/src/container_checksum.rs` (`seal_checksums`, `verify_checksums`).
 
-Next steps:
+Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{roster1,testroster}.bin`, fixture, and Modding Studio vanilla 360 save when present.
 
-1. **Binary RE** on `NHL Modding Studio.exe` / `checksum.rs` panic paths — not a source port.
-2. **Validate** with `roster1.bin` / `testroster.bin` — recompute `@0x10` and `@0x28`, then wire into `pack()`.
-3. **M5** — in-game load after first round-trip.
+### Discovery history
+
+Brute-force over obvious slices (`checksum_discover` + `checksum_discover_extended`) ruled out `EAChecksum`, TDB `Crc32Be`, chained CRC, zlib digests, and MD5/SHA1 truncations before binary RE identified the dual-CRC layout above.
 
 **TDB internal CRCs** (M3) are a separate layer. In-game saves keep stale TDB CRC fields; M2 container checksum is what changes on save.
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use roster_container::{pack, pack_unchanged, unpack};
+use roster_container::{pack, unpack};
 
 #[derive(Parser)]
 #[command(name = "roster-cli", about = "NHL Legacy roster save tools")]
@@ -61,18 +61,7 @@ fn pack_command(input: PathBuf, template: PathBuf, output: PathBuf) -> Result<()
     let template_bytes =
         fs::read(&template).with_context(|| format!("read template {}", template.display()))?;
 
-    let packed = pack(&db, &template_bytes)
-        .or_else(|e| {
-            if e.to_string().contains("checksum") {
-                pack_unchanged(&db, &template_bytes).context(
-                    "pack failed: edited DB requires container checksum (not implemented); \
-                     template DB must be unchanged",
-                )
-            } else {
-                Err(anyhow::Error::from(e))
-            }
-        })
-        .context("pack roster container")?;
+    let packed = pack(&db, &template_bytes).context("pack roster container")?;
 
     write_output(&output, &packed)?;
     eprintln!(

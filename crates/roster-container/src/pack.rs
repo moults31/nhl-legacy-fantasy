@@ -2,6 +2,7 @@ use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use std::io::Write;
 
+use crate::container_checksum;
 use crate::error::{Error, Result};
 use crate::format::{Platform, RosterHeader, XBOX360_HEADER_SIZE};
 use crate::unpack::{decompress_zlib, validate_tdb_magic};
@@ -27,20 +28,20 @@ pub fn pack(db: &[u8], template: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::with_capacity(XBOX360_HEADER_SIZE + compressed.len());
     out.extend_from_slice(&template[..XBOX360_HEADER_SIZE]);
 
-    write_u32_be(&mut out, 0x10, header.checksum);
+    write_u32_be(&mut out, 0x10, 0);
     write_u32_be(&mut out, 0x14, header.field_0x14);
     write_u32_be(&mut out, 0x18, header.field_0x18);
     write_u32_be(&mut out, 0x1c, header.field_0x1c);
     write_u32_be(&mut out, 0x20, header.field_0x20);
     write_u32_be(&mut out, 0x24, db.len() as u32);
-    write_u32_be(&mut out, 0x28, header.field_0x28);
+    write_u32_be(&mut out, 0x28, 0);
     write_u32_be(&mut out, 0x2c, header.field_0x2c);
 
     debug_assert_eq!(out.len(), XBOX360_HEADER_SIZE);
     out.extend_from_slice(&compressed);
 
-    // Checksum at 0x10 is still unknown for edited payloads — see docs/M2-PACK.md.
-    Err(Error::ChecksumUnknown)
+    container_checksum::seal(&mut out)?;
+    Ok(out)
 }
 
 /// Pack when the caller accepts reusing the template verbatim for unchanged DBs only.
@@ -87,13 +88,14 @@ mod tests {
     }
 
     #[test]
-    fn pack_modified_db_returns_checksum_unknown() {
+    fn pack_modified_db_seals_container_checksums() {
         let template = std::fs::read(FIXTURE).expect("fixture");
         let mut db = unpack(&template).expect("unpack");
         if db.is_empty() {
             panic!("empty db");
         }
         db[100] ^= 0x01;
-        assert!(matches!(pack(&db, &template), Err(Error::ChecksumUnknown)));
+        let packed = pack(&db, &template).expect("pack edited db");
+        crate::container_checksum::verify(&packed).expect("sealed checksums verify");
     }
 }

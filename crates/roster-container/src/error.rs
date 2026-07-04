@@ -24,4 +24,15 @@ pub enum Error {
 
     #[error("roster container checksum algorithm for edited saves is not implemented yet")]
     ChecksumUnknown,
+
+    #[error(
+        "roster container checksum mismatch (@0x10={offset_0x10:#010x} expected {expected_0x10:#010x}, \
+         @0x28={offset_0x28:#010x} expected {expected_0x28:#010x})"
+    )]
+    ChecksumMismatch {
+        offset_0x10: u32,
+        expected_0x10: u32,
+        offset_0x28: u32,
+        expected_0x28: u32,
+    },
 }
