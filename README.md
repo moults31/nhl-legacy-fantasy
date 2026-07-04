@@ -29,6 +29,10 @@ See [docs/PLAN.md](docs/PLAN.md) for scope and milestones. Local reference mater
 
 | Crate | Role |
 |-------|------|
-| `roster-container` | `RosterFile` pack/unpack (milestone 1) |
+| Crate | Role |
+|-------|------|
+| `roster-container` | `RosterFile` pack/unpack (milestone 1–2) |
+| `ea-tdb` | TDB header parse and `crc32_be` (milestone 3, in progress) |
+| `roster-cli` | CLI entrypoint |
 | `roster-cli` | Command-line interface |
 
