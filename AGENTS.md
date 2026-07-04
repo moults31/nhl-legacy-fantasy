@@ -20,6 +20,10 @@ Full inventory, the McTavish edit pair, and save paths: **[docs/LOCAL-ARTIFACTS.
 
 The game still writes saves under Steam compatdata when launched via `launch-nhl-legacy.sh` (app id **3623314720**). Stable copies for tests live in `_local/game-saves/xbox/`. See [docs/LOCAL-ARTIFACTS.md](docs/LOCAL-ARTIFACTS.md) for the full path pattern.
 
+## Reference source policy
+
+**No upstream source code will ever be added** (Modding Studio, `nhl-database-studio`, `tdb-savedata`, `tdb-core`, etc.). Do not ask for it or defer work waiting for it. Port algorithms from `_local/` binaries (IL/binary RE), fixtures, and in-game oracles. Full policy and milestone order: **[docs/REFERENCE-POLICY.md](docs/REFERENCE-POLICY.md)**.
+
 ## Conventions
 
 - Prefer **Rust** for tools and libraries unless there is a strong reason not to.

@@ -58,15 +58,15 @@ Brute-force over `_local/game-saves/xbox/{roster1,testroster}.bin`, `tests/fixtu
 
 Both `@0x10` and `@0x28` change between **ROSTER1** and **TESTROSTER**; `@0x2C` low 16 bits stay `0x0C00` on Legacy saves.
 
-**Likely implementation:** NHL Modding Studio embeds `crates/tdb-savedata/src/checksum.rs` (Rust) in `NHL Modding Studio.exe` — strings reference `nhl-savedata-xbox-` and `pack_xbox_save`. That source is not in this repo; porting the algorithm from the binary or obtaining the Modding Studio source tree is the fastest path to M2.
-
-The Rust `EaChecksum` port in `roster-container` **does** match the reference DLL for MC02/interop; it is not the `RosterFile` container checksum.
+**Likely implementation:** NHL Modding Studio embeds `crates/tdb-savedata/src/checksum.rs` in `NHL Modding Studio.exe` (Rust). The portable app itself notes the **“second header checksum”** (NHL 12+, `@0x28`) is **not reverse-engineered**. There is **no source tree** — see [REFERENCE-POLICY.md](REFERENCE-POLICY.md). Reverse the embedded Rust in `NHL Modding Studio.exe` and use the McTavish pair as oracle.
 
 Next steps:
 
-1. **Port `tdb-savedata` checksum.rs** from Modding Studio source (preferred) or reverse the embedded Rust in `NHL Modding Studio.exe`.
+1. **Binary RE** on `NHL Modding Studio.exe` / `checksum.rs` panic paths — not a source port.
 2. **Validate** with `roster1.bin` / `testroster.bin` — recompute `@0x10` and `@0x28`, then wire into `pack()`.
 3. **M5** — in-game load after first round-trip.
+
+**TDB internal CRCs** (M3) are a separate layer. In-game saves keep stale TDB CRC fields; M2 container checksum is what changes on save.
 
 ## Implementation steps
 

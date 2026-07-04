@@ -93,6 +93,54 @@ fn mctavish_pair_container_checksums_differ() {
 }
 
 #[test]
+fn mctavish_pair_tdb_internal_crcs_unchanged_on_game_save() {
+    let Some((before_container, after_container)) = try_read_pair() else {
+        return;
+    };
+
+    let before = unpack(&before_container).expect("unpack roster1");
+    let after = unpack(&after_container).expect("unpack testroster");
+
+    let file_before = ea_tdb::TdbFile::parse(&before).expect("parse roster1 TDB");
+    let file_after = ea_tdb::TdbFile::parse(&after).expect("parse testroster TDB");
+
+    assert_eq!(
+        file_before.header_crc, file_after.header_crc,
+        "Legacy in-game save does not rewrite TDB header CRC @ 0x14"
+    );
+
+    let ajmx_before = file_before.directory.get("ajmx").expect("ajmx");
+    let ajmx_after = file_after.directory.get("ajmx").expect("ajmx");
+    let info_before =
+        file_before.directory.table_data_start + ajmx_before.data_offset as usize;
+    let info_after = file_after.directory.table_data_start + ajmx_after.data_offset as usize;
+
+    let prior_before = u32::from_be_bytes(
+        before[info_before..info_before + 4]
+            .try_into()
+            .expect("prior"),
+    );
+    let prior_after = u32::from_be_bytes(
+        after[info_after..info_after + 4]
+            .try_into()
+            .expect("prior"),
+    );
+    let hcrc_before = u32::from_be_bytes(
+        before[info_before + 36..info_before + 40]
+            .try_into()
+            .expect("hcrc"),
+    );
+    let hcrc_after = u32::from_be_bytes(
+        after[info_after + 36..info_after + 40]
+            .try_into()
+            .expect("hcrc"),
+    );
+
+    assert_eq!(prior_before, prior_after);
+    assert_eq!(hcrc_before, hcrc_after);
+}
+
+#[test]
 fn mctavish_save_reorders_records() {
     let Some((before_container, after_container)) = try_read_pair() else {
         return;

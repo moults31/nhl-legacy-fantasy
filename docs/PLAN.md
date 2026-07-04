@@ -14,7 +14,7 @@ Prefer **Rust** for all tools and libraries unless something is clearly better d
 
 ## Inputs we rely on (local, not in git)
 
-See [AGENTS.md](../AGENTS.md) and [LOCAL-ARTIFACTS.md](LOCAL-ARTIFACTS.md). Everything lives under **`_local/`** in the checkout.
+See [AGENTS.md](../AGENTS.md), [LOCAL-ARTIFACTS.md](LOCAL-ARTIFACTS.md), and **[REFERENCE-POLICY.md](REFERENCE-POLICY.md)**. Everything lives under **`_local/`** in the checkout. **No upstream source** (Modding Studio, `tdb-savedata`, `tdb-core`) will be provided — port from binaries, IL, and fixtures.
 
 - Modding Studio `defs/` and vanilla roster saves
 - EADBEditor field dictionary (`NHL 14 xml.xml`) and assemblies to reverse for checksums / TDB write

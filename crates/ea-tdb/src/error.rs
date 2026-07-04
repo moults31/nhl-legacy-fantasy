@@ -18,4 +18,7 @@ pub enum Error {
 
     #[error("invalid TDB record access: {reason}")]
     InvalidRecordAccess { reason: &'static str },
+
+    #[error("TDB CRC fields do not match reseal output")]
+    ChecksumMismatch,
 }

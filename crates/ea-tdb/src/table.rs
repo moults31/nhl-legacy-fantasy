@@ -5,7 +5,8 @@ use crate::format::{read_u32_be, Endian, FIELD_DESCRIPTOR_SIZE, TABLE_INFO_SIZE}
 /// 40-byte table info block (`DBTable.infosize` in EA DB Editor).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableInfo {
-    pub table_id: [u8; 4],
+    /// Chained payload CRC written at info offset 0 (`DBTable.priorcrc` / `calcPcrc`).
+    pub prior_crc: u32,
     pub unknown_2: u32,
     pub record_length_bytes: u32,
     pub record_length_bits: u32,
@@ -22,7 +23,7 @@ impl TableInfo {
             return Err(Error::TooSmall { len: data.len() });
         }
         Ok(Self {
-            table_id: data[offset..offset + 4].try_into().expect("slice"),
+            prior_crc: read_u32_be(data, offset),
             unknown_2: read_u32_be(data, offset + 4),
             record_length_bytes: read_u32_be(data, offset + 8),
             record_length_bits: read_u32_be(data, offset + 12),
@@ -32,14 +33,6 @@ impl TableInfo {
             index_count: data[offset + 29],
             header_crc: read_u32_be(data, offset + 36),
         })
-    }
-
-    pub fn table_id_str(&self) -> Option<&str> {
-        if self.table_id.iter().all(|&b| (32..127).contains(&b)) {
-            std::str::from_utf8(&self.table_id).ok()
-        } else {
-            None
-        }
     }
 
     pub fn field_descriptors_offset(&self, info_offset: usize) -> usize {
@@ -167,7 +160,6 @@ mod tests {
         let oets = dir.get("OEtS").expect("OEtS");
         let abs = dir.table_data_start + oets.data_offset as usize;
         let layout = TableLayout::parse(&data, abs).expect("table");
-        assert_eq!(layout.info.table_id_str(), Some("B5o0"));
         assert_eq!(layout.info.unknown_2, 6);
         assert_eq!(layout.info.record_length_bytes, 104);
         assert_eq!(layout.info.record_length_bits, 831);
