@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use roster_container::{pack, unpack};
+use roster_container::{pack, pack_with_field_0x2c, unpack};
 
 #[derive(Parser)]
 #[command(name = "roster-cli", about = "NHL Legacy roster save tools")]
@@ -26,6 +26,9 @@ enum Commands {
         input: PathBuf,
         /// Original roster save used as template (header + zlib when unchanged).
         template: PathBuf,
+        /// Optional `@0x2c` override for edited payloads (hex u32).
+        #[arg(long)]
+        field_0x2c: Option<String>,
         #[arg(short, long)]
         output: PathBuf,
     },
@@ -38,8 +41,9 @@ fn main() -> Result<()> {
         Commands::Pack {
             input,
             template,
+            field_0x2c,
             output,
-        } => pack_command(input, template, output),
+        } => pack_command(input, template, field_0x2c, output),
     }
 }
 
@@ -56,12 +60,24 @@ fn unpack_command(input: PathBuf, output: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn pack_command(input: PathBuf, template: PathBuf, output: PathBuf) -> Result<()> {
+fn pack_command(
+    input: PathBuf,
+    template: PathBuf,
+    field_0x2c: Option<String>,
+    output: PathBuf,
+) -> Result<()> {
     let db = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
     let template_bytes =
         fs::read(&template).with_context(|| format!("read template {}", template.display()))?;
 
-    let packed = pack(&db, &template_bytes).context("pack roster container")?;
+    let packed = match field_0x2c {
+        Some(hex) => {
+            let value = parse_hex_u32(&hex).with_context(|| format!("parse field_0x2c {hex}"))?;
+            pack_with_field_0x2c(&db, &template_bytes, value)
+        }
+        None => pack(&db, &template_bytes),
+    }
+    .context("pack roster container")?;
 
     write_output(&output, &packed)?;
     eprintln!(
@@ -72,6 +88,11 @@ fn pack_command(input: PathBuf, template: PathBuf, output: PathBuf) -> Result<()
         template.display()
     );
     Ok(())
+}
+
+fn parse_hex_u32(hex: &str) -> Result<u32> {
+    let stripped = hex.strip_prefix("0x").unwrap_or(hex);
+    u32::from_str_radix(stripped, 16).context("invalid hex u32")
 }
 
 fn write_output(output: &PathBuf, bytes: &[u8]) -> Result<()> {

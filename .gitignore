@@ -4,3 +4,4 @@
 # Game save fixtures (see tests/fixtures/README.md)
 /tests/fixtures/*
 !/tests/fixtures/README.md
+__pycache__/

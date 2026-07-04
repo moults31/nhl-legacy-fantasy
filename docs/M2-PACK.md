@@ -20,7 +20,8 @@ pack(unpack(save)) == save
 | `pack()` for edited DBs | **Done** — seals both checksums; zlib level may differ from original |
 | Discovery harness | **Done** — `checksum_discover*.rs`, `checksum_oracle.rs` |
 | Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Partial** — checksums correct; byte-identical repack requires matching deflate |
-| M5 in-game load after edit | **Pending** |
+| M5 in-game load (unchanged repack) | **Pass** — M5CHK01 |
+| M5 in-game load (edited repack) | **In progress** — M5MCT01 pending operator test |
 
 ## Prerequisites
 
@@ -61,6 +62,39 @@ Write order: seal `@0x28` first, then `@0x10` (primary input includes the sealed
 Rust: `crates/roster-container/src/container_checksum.rs` (`seal_checksums`, `verify_checksums`).
 
 Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{roster1,testroster}.bin`, fixture, and Modding Studio vanilla 360 save when present.
+
+### M5 in-game verification (2026-07-04)
+
+| Save | Description | Result |
+|------|-------------|--------|
+| **M5CHK01** | Unchanged `testroster` repack, new slot name | **Pass** |
+| **M5ANA01** | `roster1` DB + `testroster` template (wrong `@0x2c` + over-compressed zlib) | **Fail** — damaged |
+| **M5ANA02** | `roster1` DB + `roster1` template | **Pass** — McTavish on Anaheim |
+| **M5MCT01** | `testroster` DB with `cPbu.WBbd` patched to Anaheim + repack | **Fail** — damaged (v1 ~818 KB, v2 ~2.456 MB stored blocks) |
+
+If a damaged M5 slot blocks the title screen, remove it with `python3 tools/install_m5_saves.py --remove M5MCT01`. Legacy auto-loads the active roster on startup.
+
+### Edited repack gate (M5MCT01, confirmed 2026-07-04)
+
+**Unchanged** round-trips load (M5CHK01, M5ANA02). **Any recompressed payload fails**, even when:
+
+- Container checksums `@0x10` / `@0x28` verify in Rust
+- Zlib header is `78 9c` and payload is ~2.45 MB (near-stored stored blocks)
+- `@0x2c` is copied from the template save
+
+Game originals use a **single dynamic-Huffman deflate block** at ~1:1 ratio (`789cec7b…`). Our encoders (default flate2, stored blocks) produce a different bitstream; the game rejects them as damaged. Single-byte TDB edits cannot reuse the template compressed bytes.
+
+**Next:** reverse `pack_xbox_save` from `NHL Modding Studio.exe` (embedded `tdb-savedata`) or clone the original dynamic block tables. Until then, semantic edits work in TDB (`write_field`) but cannot be installed via `pack()`.
+
+**Interim for Anaheim baseline:** repack unchanged `roster1.bin` (M5ANA02) or edit in-game from TESTROSTER.
+
+Edited repack requirements learned from M5:
+
+1. **Template match** — use the template save whose header metadata matches the payload lineage.
+2. **Near-stored deflate** — game saves are ~1:1 with `78 9c` (~2.45 MB). Default flate2 (~818 KB) lists but fails load (M5ANA01 / M5MCT01 v1). Edited repacks use stored deflate blocks under `78 9c` (~2.456 MB).
+3. **`@0x2c` override** — upper 16 bits are content-dependent; pass a reference value until the algorithm is reversed (`pack_with_field_0x2c`).
+
+Install helper: `tools/install_m5_saves.py` (optional `--only M5MCT01`). **Building the blob alone does not install it** — run the script (or copy blob + `.header` sidecar) before refreshing in-game.
 
 ### Discovery history
 

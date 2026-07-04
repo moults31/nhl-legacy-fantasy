@@ -17,5 +17,5 @@ pub use container_checksum::{
 pub use ea_checksum::EaChecksum;
 pub use error::{Error, Result};
 pub use format::{Platform, RosterHeader, XBOX360_HEADER_SIZE, XBOX360_MAGIC, PS3_MAGIC};
-pub use pack::{pack, pack_unchanged};
+pub use pack::{pack, pack_unchanged, pack_with_field_0x2c};
 pub use unpack::{detect_platform, unpack, unpack_with_header};

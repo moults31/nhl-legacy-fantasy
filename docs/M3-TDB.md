@@ -14,7 +14,7 @@ Scope from [PLAN.md](PLAN.md): read/write EA TDB (`default.db`), reseal internal
 | Bit-packed field write | **Partial** — `write_field` on `TableLayout`; reseal after patch |
 | CRC reseal | **Ported** — `reseal_checksums` / `verify_checksums` from EA DB Editor IL |
 | Game-save CRC fields | **Stale on save** — Legacy does not rewrite TDB CRCs in-game (see below) |
-| Semantic tables (`ubPc`, `kOtt`, …) | **Internal ids in save** — see note below |
+| Semantic tables (`ubPc`, `kOtt`, …) | **Mapped** — `cPbu` = exhibition player bio; team move = `WBbd` (`proteam`) |
 | McTavish move diff fixture | **Available** — `_local/game-saves/xbox/{roster1,testroster}.bin` |
 
 ## `ea-tdb`
@@ -71,12 +71,28 @@ Unpacking `roster1.bin` vs `testroster.bin` after an in-game roster edit:
 
 The game loads saves with **stale** internal TDB CRC fields. Our EA DB Editor reseal is for **tool-written** DBs (consistent CRC chain); it does not round-trip existing game CRC bytes. Acceptance: `reseal_checksums` is idempotent on its own output; M5 confirms load after we pack with M2.
 
+### TDB bit-field endian (Legacy roster saves)
+
+File header byte @ `0x04` is `0x01` on observed Xbox saves. That marker selects **MSB-first** bit packing (`Endian::Big` in `ea-tdb`), not little-endian within each byte. Using the wrong order misreads numeric fields (e.g. `cPbu.WBbd` / `proteam`).
+
+## McTavish team move (2026-07-04 pair)
+
+In-game **Player Movement** updates **`cPbu.WBbd`** (`proteam`), not **`cPbu.BSXd`** (`team`):
+
+| Save | McTavish `WBbd` | Team |
+|------|-----------------|------|
+| `roster1.bin` | `1` | Anaheim Ducks |
+| `testroster.bin` | `25` | St. Louis Blues |
+
+Only **one raw byte** differs inside the McTavish `cPbu` record between the pair (bit-packed `proteam` at record offset +115). Record index (`1424`) is stable across the pair despite file-offset reorder on save.
+
 ## Semantic tables note
 
 Unpacked Legacy roster `default.db` files do **not** contain literal `ubPc` / `kOtt` / `eGlu` strings. The 39 top-level directory tables use internal ids (`ajmx`, `OEtS`, …). Map semantic names via `NHL 14 xml.xml` and Modding Studio `defs/`.
 
 ## Next steps
 
-1. Table writer + `write_field` after edits, then call `reseal_checksums`
-2. Resolve internal table id → `ubPc` / `dXSB` for programmatic team moves
-3. **M2** — reverse `tdb-savedata` container checksum in `NHL Modding Studio.exe` (@ `0x10` / `0x28`); real save gate
+1. M5 operator test **M5MCT01** — edited repack (McTavish Anaheim via `WBbd` write + `pack_with_field_0x2c`)
+2. Reverse `@0x2c` upper-16 algorithm (remove reference-save requirement for edited pack)
+3. Match game zlib params for byte-identical edited repack (optional)
+4. Semantic JSON export/import (M4)

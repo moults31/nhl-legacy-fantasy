@@ -37,6 +37,26 @@ fn diff_byte_count(a: &[u8], b: &[u8]) -> usize {
     a.iter().zip(b.iter()).filter(|(x, y)| x != y).count()
 }
 
+fn mctavish_cpbu_record(db: &[u8]) -> Option<(usize, u64)> {
+    let file = ea_tdb::TdbFile::parse(db).ok()?;
+    let entry = file.directory.get("cPbu")?;
+    let layout = file.table_layout(db, entry).ok()?;
+    let proteam = layout.find_field("WBbd")?;
+    let rlb = layout.info.record_length_bytes as usize;
+    let base = layout.records_offset();
+    for record in 0..layout.info.current_records as usize {
+        let start = base + record * rlb;
+        let end = start + rlb;
+        if db.get(start..end)?.windows(8).any(|w| w == b"McTavish") {
+            let team_id = layout
+                .read_field(db, record, proteam, file.header.endian)
+                .ok()?;
+            return Some((record, team_id));
+        }
+    }
+    None
+}
+
 #[test]
 fn mctavish_present_in_both_saves() {
     let Some((before_container, after_container)) = try_read_pair() else {
@@ -138,6 +158,50 @@ fn mctavish_pair_tdb_internal_crcs_unchanged_on_game_save() {
 
     assert_eq!(prior_before, prior_after);
     assert_eq!(hcrc_before, hcrc_after);
+}
+
+/// In-game player movement updates `cPbu.WBbd` (`proteam`), not `BSXd` (`team`).
+#[test]
+fn mctavish_proteam_on_cpbu() {
+    let Some((before_container, after_container)) = try_read_pair() else {
+        return;
+    };
+
+    let before = unpack(&before_container).expect("unpack roster1");
+    let after = unpack(&after_container).expect("unpack testroster");
+
+    let (rec_before, team_before) =
+        mctavish_cpbu_record(&before).expect("McTavish in roster1 cPbu");
+    let (rec_after, team_after) =
+        mctavish_cpbu_record(&after).expect("McTavish in testroster cPbu");
+
+    assert_eq!(rec_before, rec_after, "record index stable across pair");
+    assert_eq!(team_before, 1, "roster1: McTavish on Anaheim (proteam=1)");
+    assert_eq!(team_after, 25, "testroster: McTavish on St. Louis (proteam=25)");
+}
+
+#[test]
+fn mctavish_write_proteam_round_trip() {
+    let Some((_before_container, after_container)) = try_read_pair() else {
+        return;
+    };
+
+    let mut db = unpack(&after_container).expect("unpack testroster");
+    let file = ea_tdb::TdbFile::parse(&db).expect("parse");
+    let entry = file.directory.get("cPbu").expect("cPbu");
+    let layout = file.table_layout(&db, entry).expect("layout");
+    let proteam = layout.find_field("WBbd").expect("WBbd");
+
+    let (record, team_before) = mctavish_cpbu_record(&db).expect("McTavish");
+    assert_eq!(team_before, 25);
+
+    layout
+        .write_field(&mut db, record, proteam, 1, file.header.endian)
+        .expect("write Anaheim");
+    let team_after = layout
+        .read_field(&db, record, proteam, file.header.endian)
+        .expect("read back");
+    assert_eq!(team_after, 1);
 }
 
 #[test]
