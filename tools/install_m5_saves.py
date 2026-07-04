@@ -159,17 +159,18 @@ def main() -> None:
     else:
         installs = []
     for item in installs:
-            if not blob.is_file():
-                raise SystemExit(f"missing blob: {blob}")
-            verify_blob(blob)
-            install = SaveInstall(
-                display_name=item.display_name,
-                timestamp=item.timestamp,
-                blob=blob,
-                trailer_id=item.trailer_id,
-            )
-            dest = install_save(base, template_header, install)
-            print(f"installed {item.display_name} -> {dest}")
+        blob = staging / item.blob
+        if not blob.is_file():
+            raise SystemExit(f"missing blob: {blob}")
+        verify_blob(blob)
+        install = SaveInstall(
+            display_name=item.display_name,
+            timestamp=item.timestamp,
+            blob=blob,
+            trailer_id=item.trailer_id,
+        )
+        dest = install_save(base, template_header, install)
+        print(f"installed {item.display_name} -> {dest}")
 
 
 def verify_blob(blob: Path) -> None:

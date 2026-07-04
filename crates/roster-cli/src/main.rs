@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use roster_container::{pack, pack_with_field_0x2c, unpack};
+use roster_semantic::{apply_import, export_roster, RosterExport};
 
 #[derive(Parser)]
 #[command(name = "roster-cli", about = "NHL Legacy roster save tools")]
@@ -32,6 +33,19 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
     },
+    /// Export players and teams from default.db as JSON.
+    Export {
+        input: PathBuf,
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+    /// Apply player proteam patches from JSON onto default.db.
+    Import {
+        input: PathBuf,
+        patches: PathBuf,
+        #[arg(short, long)]
+        output: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -44,6 +58,12 @@ fn main() -> Result<()> {
             field_0x2c,
             output,
         } => pack_command(input, template, field_0x2c, output),
+        Commands::Export { input, output } => export_command(input, output),
+        Commands::Import {
+            input,
+            patches,
+            output,
+        } => import_command(input, patches, output),
     }
 }
 
@@ -86,6 +106,36 @@ fn pack_command(
         packed.len(),
         input.display(),
         template.display()
+    );
+    Ok(())
+}
+
+fn export_command(input: PathBuf, output: PathBuf) -> Result<()> {
+    let db = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
+    let export = export_roster(&db).context("export roster JSON")?;
+    let json = serde_json::to_string_pretty(&export).context("serialize JSON")?;
+    write_output(&output, json.as_bytes())?;
+    eprintln!(
+        "exported {} players, {} teams -> {}",
+        export.players.len(),
+        export.teams.len(),
+        output.display()
+    );
+    Ok(())
+}
+
+fn import_command(input: PathBuf, patches: PathBuf, output: PathBuf) -> Result<()> {
+    let mut db = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
+    let patch_json =
+        fs::read_to_string(&patches).with_context(|| format!("read {}", patches.display()))?;
+    let import: RosterExport =
+        serde_json::from_str(&patch_json).context("parse roster JSON patches")?;
+    let applied = apply_import(&mut db, &import).context("apply roster import")?;
+    write_output(&output, &db)?;
+    eprintln!(
+        "applied {} proteam patch(es) -> {}",
+        applied.len(),
+        output.display()
     );
     Ok(())
 }

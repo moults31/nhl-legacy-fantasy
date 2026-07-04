@@ -4,6 +4,7 @@ members = [
     "crates/roster-container",
     "crates/roster-cli",
     "crates/ea-tdb",
+    "crates/roster-semantic",
 ]
 
 [workspace.package]
