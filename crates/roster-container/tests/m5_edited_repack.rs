@@ -1,0 +1,84 @@
+//! Build M5 verification saves into `_local/game-saves/xbox/m5-staging/`.
+
+use std::path::Path;
+
+use ea_tdb::TdbFile;
+use roster_container::{pack_with_field_0x2c, unpack, verify_checksums, RosterHeader};
+
+fn fixture_root() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../_local/game-saves/xbox")
+}
+
+fn staging_dir() -> std::path::PathBuf {
+    fixture_root().join("m5-staging")
+}
+
+fn mctavish_proteam(db: &[u8]) -> Option<(usize, u64)> {
+    let file = TdbFile::parse(db).ok()?;
+    let entry = file.directory.get("cPbu")?;
+    let layout = file.table_layout(db, entry).ok()?;
+    let proteam = layout.find_field("WBbd")?;
+    let rlb = layout.info.record_length_bytes as usize;
+    let base = layout.records_offset();
+    for record in 0..layout.info.current_records as usize {
+        let start = base + record * rlb;
+        let end = start + rlb;
+        if db.get(start..end)?.windows(8).any(|w| w == b"McTavish") {
+            let team_id = layout
+                .read_field(db, record, proteam, file.header.endian)
+                .ok()?;
+            return Some((record, team_id));
+        }
+    }
+    None
+}
+
+fn write_mctavish_proteam(db: &mut [u8], team: u64) {
+    let file = TdbFile::parse(db).expect("parse");
+    let entry = file.directory.get("cPbu").expect("cPbu");
+    let layout = file.table_layout(db, entry).expect("layout");
+    let proteam = layout.find_field("WBbd").expect("WBbd");
+    let (record, _) = mctavish_proteam(db).expect("McTavish");
+    layout
+        .write_field(db, record, proteam, team, file.header.endian)
+        .expect("write proteam");
+}
+
+#[test]
+fn build_m5mct01_edited_repack() {
+    let root = fixture_root();
+    let testroster = root.join("testroster.bin");
+    let roster1 = root.join("roster1.bin");
+    if !testroster.is_file() || !roster1.is_file() {
+        eprintln!("skip: McTavish pair not present");
+        return;
+    }
+
+    let test_container = std::fs::read(&testroster).expect("testroster");
+    let roster1_container = std::fs::read(&roster1).expect("roster1");
+    let mut db = unpack(&test_container).expect("unpack testroster");
+
+    let (_, team_before) = mctavish_proteam(&db).expect("McTavish on STL");
+    assert_eq!(team_before, 25);
+
+    write_mctavish_proteam(&mut db, 1);
+    let (_, team_after) = mctavish_proteam(&db).expect("McTavish after edit");
+    assert_eq!(team_after, 1);
+
+    let h_roster1 = RosterHeader::parse(&roster1_container).expect("roster1 header");
+    let packed = pack_with_field_0x2c(&db, &test_container, h_roster1.field_0x2c)
+        .expect("pack edited db");
+
+    verify_checksums(&packed).expect("sealed checksums");
+    assert!(
+        packed.len() > 2_000_000,
+        "edited save should use near-stored deflate (~2.45 MB), got {}",
+        packed.len()
+    );
+
+    let out = staging_dir().join("M5MCT01.bin");
+    std::fs::create_dir_all(staging_dir()).expect("staging dir");
+    std::fs::write(&out, &packed).expect("write M5MCT01");
+    eprintln!("wrote {} ({} bytes)", out.display(), packed.len());
+}

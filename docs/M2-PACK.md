@@ -20,7 +20,8 @@ pack(unpack(save)) == save
 | `pack()` for edited DBs | **Done** — seals both checksums; zlib level may differ from original |
 | Discovery harness | **Done** — `checksum_discover*.rs`, `checksum_oracle.rs` |
 | Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Partial** — checksums correct; byte-identical repack requires matching deflate |
-| M5 in-game load after edit | **Pending** |
+| M5 in-game load (unchanged repack) | **Pass** — M5CHK01 |
+| M5 in-game load (edited repack) | **In progress** — M5MCT01 pending operator test |
 
 ## Prerequisites
 
@@ -61,6 +62,23 @@ Write order: seal `@0x28` first, then `@0x10` (primary input includes the sealed
 Rust: `crates/roster-container/src/container_checksum.rs` (`seal_checksums`, `verify_checksums`).
 
 Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{roster1,testroster}.bin`, fixture, and Modding Studio vanilla 360 save when present.
+
+### M5 in-game verification (2026-07-04)
+
+| Save | Description | Result |
+|------|-------------|--------|
+| **M5CHK01** | Unchanged `testroster` repack, new slot name | **Pass** |
+| **M5ANA01** | `roster1` DB + `testroster` template (wrong `@0x2c` + over-compressed zlib) | **Fail** — damaged |
+| **M5ANA02** | `roster1` DB + `roster1` template | **Pass** — McTavish on Anaheim |
+| **M5MCT01** | `testroster` DB with `cPbu.WBbd` patched to Anaheim + `pack_with_field_0x2c` | **Pending** |
+
+Edited repack requirements learned from M5:
+
+1. **Template match** — use the template save whose header metadata matches the payload lineage.
+2. **Near-stored deflate** — `Compression::new(0)` (~2.45 MB); default flate2 (~818 KB) is rejected in-game.
+3. **`@0x2c` override** — upper 16 bits are content-dependent; pass a reference value until the algorithm is reversed (`pack_with_field_0x2c`).
+
+Install helper: `tools/install_m5_saves.py` (optional `--only M5MCT01`).
 
 ### Discovery history
 

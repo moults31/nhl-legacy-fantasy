@@ -55,8 +55,9 @@ impl TdbHeader {
 
         let endian_marker = u32::from_le_bytes(data[4..8].try_into().expect("slice length"));
         let endian = match endian_marker {
-            1 => Endian::Little,
-            0 => Endian::Big,
+            // Observed Legacy roster saves: byte @4 is `0x01` (Xbox / MSB-first bit fields).
+            1 => Endian::Big,
+            0 => Endian::Little,
             marker => return Err(Error::UnsupportedEndian { marker }),
         };
 
@@ -90,7 +91,7 @@ mod tests {
     fn parses_legacy_roster_tdb_header() {
         let data = std::fs::read(FIXTURE).expect("fixture");
         let header = TdbHeader::parse(&data).expect("parse");
-        assert_eq!(header.endian, Endian::Little);
+        assert_eq!(header.endian, Endian::Big);
         assert_eq!(header.table_count, 39);
         assert_eq!(header.reserved, 0);
         assert_eq!(header.source_size, 0x0025_7A08);

@@ -10,7 +10,9 @@ Last consolidated: **2026-07-04** (operator moved resources into `_local/` and c
 |-----------|--------|
 | M1 unpack | Merged ([#1](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/1)) |
 | M2 pack (unchanged round-trip) | On `main` in `roster-container` |
-| M3 TDB parse | Merged ([#2](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/2)); CRC reseal in progress |
+| M2 container checksums | Merged ([#5](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/5)) |
+| M3 TDB parse | Merged ([#2](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/2)); CRC reseal on `main` |
+| M5 in-game verify | M5CHK01 + M5ANA02 pass; M5MCT01 pending |
 
 ## Directory map
 
@@ -60,6 +62,18 @@ Launch script sets compatdata app id **3623314720** (`_local/NHL Legacy Recomp/l
 Both containers unpack to **2 456 076** bytes. McTavish bio text appears in both; **file offsets shift** on in-game save (DB rewrite/reorder). TDB file header CRC @ `0x14` is **unchanged** between the pair on this save — reseal rules TBD.
 
 Container checksums at `RosterFile` offset **0x10** and **0x28** (u32 BE) **both** change between ROSTER1 and TESTROSTER. Offset **0x2C** low 16 bits are often `0x0C00` on Legacy saves. See [M2-PACK.md](M2-PACK.md) for the full 48-byte header map.
+
+### M5 verification slots (2026-07-04)
+
+Built blobs live in `_local/game-saves/xbox/m5-staging/`. Install beside TESTROSTER with `tools/install_m5_saves.py`.
+
+| Display name | Blob | What to check in-game |
+|--------------|------|------------------------|
+| M5CHK01 | Unchanged `testroster` repack | Loads; McTavish on St. Louis |
+| M5ANA02 | `roster1` round-trip | Loads; McTavish on Anaheim |
+| M5MCT01 | `testroster` with McTavish patched to Anaheim (`cPbu.WBbd=1`) | Should load; McTavish on Anaheim |
+
+Do not install **M5ANA01** (known damaged — wrong template + over-compression).
 
 ## Vanilla reference save
 

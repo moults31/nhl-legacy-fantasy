@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(layout.fields[4].field_id.as_str(), "JxRK");
         assert_eq!(layout.fields[4].kind_code, 3);
         let value = layout
-            .read_field(&data, 0, &layout.fields[4], Endian::Little)
+            .read_field(&data, 0, &layout.fields[4], Endian::Big)
             .expect("read field");
         let _ = value; // smoke: bit offset in range for record 0
     }

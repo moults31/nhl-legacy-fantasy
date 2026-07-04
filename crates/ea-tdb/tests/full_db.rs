@@ -21,6 +21,6 @@ fn parses_full_legacy_roster_db() {
     let xfxw = layout.find_field("xFXw").expect("xFXw ref");
     assert_eq!(xfxw.bit_width, 7);
     let _ = layout
-        .read_field(&db, 0, xfxw, Endian::Little)
+        .read_field(&db, 0, xfxw, Endian::Big)
         .expect("read xFXw ref from record 0");
 }
