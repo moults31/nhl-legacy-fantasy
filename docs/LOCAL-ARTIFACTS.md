@@ -12,7 +12,7 @@ Last consolidated: **2026-07-04** (operator moved resources into `_local/` and c
 | M2 pack (unchanged round-trip) | On `main` in `roster-container` |
 | M2 container checksums | Merged ([#5](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/5)) |
 | M3 TDB parse | Merged ([#2](https://github.com/nhl-legacy/nhl-legacy-fantasy/pull/2)); CRC reseal on `main` |
-| M5 in-game verify | M5CHK01 + M5ANA02 pass; M5MCT01 pending |
+| M5 in-game verify | M5CHK01 + M5ANA02 pass; M5MCT01 edited repack **fail** (deflate gate) |
 
 ## Directory map
 
@@ -78,9 +78,13 @@ Then use **Refresh** (RB) on the Customize / Load roster list.
 |--------------|------|------------------------|
 | M5CHK01 | Unchanged `testroster` repack | Loads; McTavish on St. Louis |
 | M5ANA02 | `roster1` round-trip | Loads; McTavish on Anaheim |
-| M5MCT01 | `testroster` with McTavish patched to Anaheim (`cPbu.WBbd=1`) | Should load; McTavish on Anaheim |
+| M5MCT01 | `testroster` with McTavish patched to Anaheim (`cPbu.WBbd=1`) | **Do not install** — damaged on load; blocks title screen if active |
 
-Do not install **M5ANA01** (known damaged — wrong template + over-compression).
+Do not install **M5ANA01** or **M5MCT01** (known damaged). Remove an active broken slot with:
+
+```bash
+python3 tools/install_m5_saves.py --remove M5MCT01
+```
 
 ## Vanilla reference save
 

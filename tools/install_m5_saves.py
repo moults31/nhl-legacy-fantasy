@@ -31,13 +31,15 @@ DEFAULT_INSTALLS = [
         blob=Path("M5ANA02.bin"),
         trailer_id="5103",
     ),
-    SaveInstall(
-        display_name="M5MCT01",
-        timestamp="20260704215004",
-        blob=Path("M5MCT01.bin"),
-        trailer_id="5104",
-    ),
 ]
+
+# Known-fail research blob — staged by `build_m5mct01` test but not installed by default.
+M5MCT01_INSTALL = SaveInstall(
+    display_name="M5MCT01",
+    timestamp="20260704215004",
+    blob=Path("M5MCT01.bin"),
+    trailer_id="5104",
+)
 
 
 def write_utf16_name(header: bytearray, name: str, start: int = 0x09, end: int = 0x1F) -> None:
@@ -105,7 +107,12 @@ def main() -> None:
         "--remove",
         action="append",
         metavar="NAME",
-        help="Remove installed saves by display name (unblocks title screen if damaged)",
+        help="Remove installed saves by display name (use when a damaged slot blocks the title screen)",
+    )
+    parser.add_argument(
+        "--remove-all-m5",
+        action="store_true",
+        help="Remove all M5* verification slots (M5CHK01, M5ANA02, M5MCT01, M5ANA01 if present)",
     )
     args = parser.parse_args()
 
@@ -118,6 +125,17 @@ def main() -> None:
     )
 
     by_name = {item.display_name: item for item in DEFAULT_INSTALLS}
+    by_name[M5MCT01_INSTALL.display_name] = M5MCT01_INSTALL
+    # M5ANA01 was an early failed experiment; allow remove by name even though we no longer install it.
+    by_name["M5ANA01"] = SaveInstall(
+        display_name="M5ANA01",
+        timestamp="20260704215001",
+        blob=Path("M5ANA01.bin"),
+        trailer_id="5101",
+    )
+
+    if args.remove_all_m5:
+        args.remove = list(by_name.keys())
 
     if args.remove:
         for name in args.remove:
@@ -127,14 +145,20 @@ def main() -> None:
             remove_save(base, item)
             print(f"removed {name}")
 
-    if not args.remove or args.only:
+    if args.only:
+        installs = []
+        for name in args.only:
+            item = by_name.get(name)
+            if item is None:
+                raise SystemExit(f"unknown save name: {name}")
+            if name == "M5MCT01":
+                print("warning: M5MCT01 is known to fail in-game load (edited repack gate)")
+            installs.append(item)
+    elif not args.remove:
         installs = DEFAULT_INSTALLS
-        if args.only:
-            wanted = set(args.only)
-            installs = [item for item in installs if item.display_name in wanted]
-
-        for item in installs:
-            blob = staging / item.blob
+    else:
+        installs = []
+    for item in installs:
             if not blob.is_file():
                 raise SystemExit(f"missing blob: {blob}")
             verify_blob(blob)

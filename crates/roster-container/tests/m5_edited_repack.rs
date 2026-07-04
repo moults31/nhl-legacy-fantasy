@@ -1,4 +1,8 @@
 //! Build M5 verification saves into `_local/game-saves/xbox/m5-staging/`.
+//!
+//! `M5MCT01` is a **research artifact**: TDB edit + repack seals container checksums but
+//! is known to fail in-game load until we port Modding Studio `pack_xbox_save` deflate.
+//! Do not install without `--remove` cleanup if testing.
 
 use std::path::Path;
 
