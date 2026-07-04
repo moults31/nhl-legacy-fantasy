@@ -6,63 +6,71 @@ Scope from [PLAN.md](PLAN.md): read/write EA TDB (`default.db`), reseal internal
 
 | Item | Status |
 |------|--------|
-| `ea-tdb` crate | **In progress** — CRC, header, directory, table layout parse |
-| Directory / table parse | **Partial** — 8-byte directory, 16+12-byte table headers |
-| Field read/write | **Not started** |
-| CRC reseal (`write_tdb`) | **Not started** |
+| `ea-tdb` crate | **In progress** |
+| Directory / table parse | **Done** — EA DB Editor layout (8-byte directory, 40-byte info, 16-byte fields) |
+| Bit-packed field read | **Done** — `read_bits` / `TableLayout::read_field` |
+| Bit-packed field write | **Partial** — `write_bits` helper; no table writer yet |
+| CRC reseal | **Not started** |
+| Semantic tables (`ubPc`, `kOtt`, …) | **Not in Proton fixture** — see note below |
 
-## `ea-tdb` (initial)
+## `ea-tdb`
 
-- **`Crc32Be`** — port of EA DB Editor `DB_CRC.crc32_be` (1024-bit-style nibble table, poly `0x04C11DB7`)
-- **`TdbHeader`** — magic `DB\0\x08`, endian marker, `source_size`, table count
+- **`Crc32Be`** — EA DB Editor `DB_CRC.crc32_be`
+- **`TdbFile`** — file header + directory
+- **`TableLayout`** — 40-byte info block + field descriptors + `read_field`
 
-Golden CRC vectors validated against a C# IL reimplementation (Mono.Cecil on `EA DB Editor.exe`).
+Layout reverse-engineered from EA DB Editor IL (`DBTable.ReadTableHeader`, `Field.ReadEntry`).
 
-## Fixed header layout (observed Legacy roster TDB)
+## On-disk layout (Legacy roster TDB)
 
-| Offset | Size | Field |
+| Region | Size | Notes |
 |--------|------|-------|
-| 0x00 | 4 | magic `DB\0\x08` |
-| 0x04 | 4 | endian marker (LE u32 `1` on fixture) |
-| 0x08 | 4 | `source_size` (BE u32; file size minus 4 on fixture) |
-| 0x0C | 4 | reserved (0) |
-| 0x10 | 4 | table count (BE u32; 39 on fixture) |
-| 0x14 | 4 | header CRC (BE u32; reseal TBD) |
-| 0x18 | 8 × count | directory entries |
-| … | — | table blobs at `0x18 + count×8 + data_offset` |
+| File header | `0x14` | magic, endian, `source_size`, table count |
+| File header CRC | 4 @ `0x14` | reseal TBD |
+| Directory | `8 × count` @ `0x18` | table id + BE offset into table data |
+| Table data start | `0x18 + 8×count` | `0x150` on fixture (39 tables) |
 
 ### Directory entry (8 bytes)
 
-| Offset | Size | Field |
-|--------|------|-------|
-| 0 | 4 | table id (printable ASCII) |
-| 4 | 4 | data offset (BE u32, relative to table data start) |
+| Offset | Field |
+|--------|-------|
+| 0 | table id (ASCII) |
+| 4 | offset from table data start to **info block** (BE u32) |
 
-### Table header (16 bytes at `table_data_start + offset`)
+### Table info block (40 bytes, `DBTable.infosize`)
 
-| Offset | Size | Field |
-|--------|------|-------|
-| 0 | 4 | on-disk table id (may differ from directory id) |
-| 4 | 4 | field count (BE u32) |
-| 8 | 4 | data allocation type (BE u32) |
-| 12 | 4 | max records / size (BE u32) |
+| Offset | Field |
+|--------|-------|
+| 0 | on-disk table id (ASCII) |
+| 4 | `unknown_2` (often `6`) |
+| 8 | `record_length_bytes` |
+| 12 | `record_length_bits` |
+| 20 | `max_records` (u16 BE) |
+| 22 | `current_records` (u16 BE) |
+| 28 | `num_fields` (u8) |
+| 36 | `header_crc` (u32 BE; reseal TBD) |
 
-Field descriptors: 12 bytes each (`field_id[4]`, `record_bit_offset` BE, `bit_width` BE).
+### Field descriptor (16 bytes)
 
-## Next implementation steps
+| Offset | Field |
+|--------|-------|
+| 0 | `kind_code` (u32 BE) |
+| 4 | `record_bit_offset` (u32 BE) |
+| 8 | field id (ASCII) |
+| 12 | `bit_width` (u32 BE) |
 
-1. Bit-packed field read/write (endian-aware)
-2. CRC scopes reseal (file header @ 0x14, per-table, varchar pool)
-3. Wire `roster-cli` to validate/reseal after container unpack
+Records begin at `info_offset + 40 + num_fields×16`.
+
+## Semantic tables note
+
+The Proton Legacy roster `default.db` in our fixture does **not** contain literal `ubPc` / `kOtt` / `eGlu` strings. The 39 top-level directory tables use internal ids (`ajmx`, `OEtS`, …). Modding Studio semantic names may apply to a different save variant or nested views — follow-up when a vanilla Modding Studio export is available.
+
+## Next steps
+
+1. CRC reseal — file header @ `0x14`, table `header_crc` @ info+36
+2. `write_field` + table writer
+3. Map semantic names via `NHL 14 xml.xml` / Modding Studio defs once table discovery path is clear
 
 ## Live game artifacts (not needed yet)
 
-These help **M2 container checksum** and **M5 in-game verify**, not the current M3 CRC port:
-
-| Artifact | Why |
-|----------|-----|
-| Fresh in-game “save roster” | Compare header fields 0x28/0x2C and checksum @ 0x10 |
-| Save with checksum @ 0x10 zeroed | Confirm game rejects/accepts (validates algorithm) |
-| Second roster save (vanilla vs edited) | Cross-check header/checksum patterns |
-
-No game access required to continue M3 directory parsing.
+See M2/M5 notes in prior docs — fresh in-game save, checksum mutation test, second roster pair.

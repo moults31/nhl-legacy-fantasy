@@ -15,4 +15,7 @@ pub enum Error {
 
     #[error("invalid TDB table/field id (expected printable ASCII): {found:?}")]
     InvalidTableId { found: [u8; 4] },
+
+    #[error("invalid TDB record access: {reason}")]
+    InvalidRecordAccess { reason: &'static str },
 }

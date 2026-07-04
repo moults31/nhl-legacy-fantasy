@@ -28,8 +28,8 @@ impl TdbFile {
     }
 
     pub fn table_layout(&self, data: &[u8], entry: &DirectoryEntry) -> Result<TableLayout> {
-        let offset = self.directory.table_data_start + entry.data_offset as usize;
-        TableLayout::parse(data, offset)
+        let info_offset = self.directory.table_data_start + entry.data_offset as usize;
+        TableLayout::parse(data, info_offset)
     }
 }
 

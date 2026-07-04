@@ -22,11 +22,14 @@ The file must begin with the `RosterFile\0` magic (16 bytes). Tests unpack it to
 
 ## Committed TDB snippet
 
-`crates/ea-tdb/tests/fixtures/tdb_header.bin` — first 256 bytes of the unpacked TDB from the Proton fixture (used by `ea-tdb` header/CRC tests). Regenerate after a fixture change:
+`crates/ea-tdb/tests/fixtures/tdb_header.bin` — first 4 KiB of unpacked TDB (header + early tables).
+
+`crates/ea-tdb/tests/fixtures/ajmx_table.bin` — isolated `ajmx` info block + descriptors (regenerate from full DB):
 
 ```bash
 cargo run -p roster-cli -- unpack tests/fixtures/xbox/roster.bin -o /tmp/default.db
-head -c 256 /tmp/default.db > crates/ea-tdb/tests/fixtures/tdb_header.bin
+head -c 4096 /tmp/default.db > crates/ea-tdb/tests/fixtures/tdb_header.bin
+dd if=/tmp/default.db of=crates/ea-tdb/tests/fixtures/ajmx_table.bin bs=1 skip=$((0xf1d0)) count=320
 ```
 
 ## Optional second fixture

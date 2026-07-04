@@ -15,11 +15,14 @@ pub const DIRECTORY_OFFSET: usize = 0x18;
 /// Directory row size on observed Legacy roster DBs.
 pub const DIRECTORY_ENTRY_SIZE: usize = 8;
 
-/// Table blob prefix before field descriptors.
-pub const TABLE_HEADER_SIZE: usize = 16;
+/// Table info block size (`DBTable.infosize` in EA DB Editor).
+pub const TABLE_INFO_SIZE: usize = 40;
 
-/// Per-field descriptor size on observed Legacy roster DBs.
-pub const FIELD_DESCRIPTOR_SIZE: usize = 12;
+/// Per-field descriptor size (`Field.fieldsize` in EA DB Editor).
+pub const FIELD_DESCRIPTOR_SIZE: usize = 16;
+
+/// Legacy alias — table blobs begin with the 40-byte info block.
+pub const TABLE_HEADER_SIZE: usize = TABLE_INFO_SIZE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Endian {
