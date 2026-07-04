@@ -1,0 +1,15 @@
+[package]
+name = "roster-cli"
+description = "CLI for NHL Legacy roster save tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "roster-cli"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+roster-container = { path = "../roster-container" }

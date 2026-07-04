@@ -1,2 +1,6 @@
 # Local reference material and installs (see AGENTS.md)
 /_local/
+
+# Game save fixtures (see tests/fixtures/README.md)
+/tests/fixtures/*
+!/tests/fixtures/README.md
