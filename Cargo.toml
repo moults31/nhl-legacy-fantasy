@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/roster-container",
     "crates/roster-cli",
+    "crates/ea-tdb",
 ]
 
 [workspace.package]

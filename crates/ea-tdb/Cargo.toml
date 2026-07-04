@@ -1,0 +1,12 @@
+[package]
+name = "ea-tdb"
+description = "EA TDB (default.db) CRC and header parsing for NHL Legacy roster DBs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror = "2.0"
+
+[dev-dependencies]
+roster-container = { path = "../roster-container" }
