@@ -6,12 +6,13 @@ Scope from [PLAN.md](PLAN.md): read/write EA TDB (`default.db`), reseal internal
 
 | Item | Status |
 |------|--------|
-| `ea-tdb` crate | **In progress** |
+| `ea-tdb` crate | **In progress** (merged #2; follow-up on branch) |
 | Directory / table parse | **Done** — EA DB Editor layout (8-byte directory, 40-byte info, 16-byte fields) |
 | Bit-packed field read | **Done** — `read_bits` / `TableLayout::read_field` |
 | Bit-packed field write | **Partial** — `write_bits` helper; no table writer yet |
 | CRC reseal | **Not started** |
-| Semantic tables (`ubPc`, `kOtt`, …) | **Not in Proton fixture** — see note below |
+| Semantic tables (`ubPc`, `kOtt`, …) | **Internal ids in save** — see note below |
+| McTavish move diff fixture | **Available** — `_local/game-saves/xbox/{roster1,testroster}.bin` |
 
 ## `ea-tdb`
 
@@ -63,14 +64,17 @@ Records begin at `info_offset + 40 + num_fields×16`.
 
 ## Semantic tables note
 
-The Proton Legacy roster `default.db` in our fixture does **not** contain literal `ubPc` / `kOtt` / `eGlu` strings. The 39 top-level directory tables use internal ids (`ajmx`, `OEtS`, …). Modding Studio semantic names may apply to a different save variant or nested views — follow-up when a vanilla Modding Studio export is available.
+Unpacked Legacy roster `default.db` files do **not** contain literal `ubPc` / `kOtt` / `eGlu` strings. The 39 top-level directory tables use internal ids (`ajmx`, `OEtS`, …). Map semantic names via `NHL 14 xml.xml` and Modding Studio `defs/` (e.g. `ubPc.dXSB` → team id).
+
+## In-game edit pair (2026-07-04)
+
+Operator moved **Mason McTavish** (Anaheim → St. Louis) and saved as **`TESTROSTER`**. Pre-move baseline: **`ROSTER1`**. Copies under `_local/game-saves/xbox/` — see [LOCAL-ARTIFACTS.md](LOCAL-ARTIFACTS.md).
+
+Integration test `crates/ea-tdb/tests/mctavish_move.rs` unpacks both saves and checks shape, McTavish presence, container checksum change, and record reordering on save. Use this pair for CRC/checksum and team-field discovery (offset-stable diffs are not expected).
 
 ## Next steps
 
 1. CRC reseal — file header @ `0x14`, table `header_crc` @ info+36
 2. `write_field` + table writer
-3. Map semantic names via `NHL 14 xml.xml` / Modding Studio defs once table discovery path is clear
-
-## Live game artifacts (not needed yet)
-
-See M2/M5 notes in prior docs — fresh in-game save, checksum mutation test, second roster pair.
+3. Resolve internal table id → `ubPc` / `dXSB` for programmatic team moves
+4. M2 — diff container checksum @ `0x10` between `roster1.bin` and `testroster.bin`

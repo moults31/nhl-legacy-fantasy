@@ -50,7 +50,7 @@ The Rust `EaChecksum` port in `roster-container` **does** match the reference DL
 
 Next steps:
 
-1. **Diff-driven discovery** — mutate single header/payload bytes on a copy, reload in-game or compare against Modding Studio read path to see what invalidates the checksum field.
+1. **Diff-driven discovery** — use `_local/game-saves/xbox/roster1.bin` vs `testroster.bin` (McTavish move, 2026-07-04) to narrow the u32 @ 0x10 rule; see [LOCAL-ARTIFACTS.md](LOCAL-ARTIFACTS.md).
 2. **Port EAChecksum to Rust anyway** — needed for MC02/interop and as a building block; algorithm summary in [MODDING-TOOLS.md](MODDING-TOOLS.md).
 3. **Cross-check Modding Studio** — portable app read/write path for NHL 12–15 roster saves may document or mirror the Legacy container checksum.
 
