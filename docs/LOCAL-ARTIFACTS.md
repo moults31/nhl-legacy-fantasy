@@ -65,7 +65,14 @@ Container checksums at `RosterFile` offset **0x10** and **0x28** (u32 BE) **both
 
 ### M5 verification slots (2026-07-04)
 
-Built blobs live in `_local/game-saves/xbox/m5-staging/`. Install beside TESTROSTER with `tools/install_m5_saves.py`.
+Built blobs live in `_local/game-saves/xbox/m5-staging/`. **Install** beside TESTROSTER before loading in-game:
+
+```bash
+cargo test -p roster-container build_m5mct01 -- --nocapture   # rebuild blob
+python3 tools/install_m5_saves.py --only M5MCT01               # copy into Proton tree
+```
+
+Then use **Refresh** (RB) on the Customize / Load roster list.
 
 | Display name | Blob | What to check in-game |
 |--------------|------|------------------------|
