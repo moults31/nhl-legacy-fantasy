@@ -135,6 +135,48 @@ impl TableLayout {
             endian,
         ))
     }
+
+    pub fn write_field(
+        &self,
+        data: &mut [u8],
+        record_index: usize,
+        field: &FieldDescriptor,
+        value: u64,
+        endian: Endian,
+    ) -> Result<()> {
+        let rlb = self.info.record_length_bytes as usize;
+        if rlb == 0 {
+            return Err(Error::InvalidRecordAccess {
+                reason: "record_length_bytes is zero",
+            });
+        }
+        let max = (1u64 << field.bit_width) - 1;
+        if value > max {
+            return Err(Error::InvalidRecordAccess {
+                reason: "value does not fit in field width",
+            });
+        }
+        let record_byte = self.records_offset() + record_index * rlb;
+        let bit_offset = record_byte * 8 + field.record_bit_offset as usize;
+        let end_bit = bit_offset + field.bit_width as usize;
+        if end_bit > data.len() * 8 {
+            return Err(Error::InvalidRecordAccess {
+                reason: "field bits extend past file end",
+            });
+        }
+        if !crate::bitview::write_bits(
+            data,
+            bit_offset,
+            field.bit_width,
+            value,
+            endian,
+        ) {
+            return Err(Error::InvalidRecordAccess {
+                reason: "write_bits failed",
+            });
+        }
+        Ok(())
+    }
 }
 
 fn read_u16_be(data: &[u8], offset: usize) -> u16 {

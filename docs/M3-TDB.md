@@ -11,7 +11,7 @@ Scope from [PLAN.md](PLAN.md): read/write EA TDB (`default.db`), reseal internal
 | `ea-tdb` crate | **In progress** |
 | Directory / table parse | **Done** — EA DB Editor layout (8-byte directory, 40-byte info, 16-byte fields) |
 | Bit-packed field read | **Done** — `read_bits` / `TableLayout::read_field` |
-| Bit-packed field write | **Partial** — `write_bits` helper; no table writer yet |
+| Bit-packed field write | **Partial** — `write_field` on `TableLayout`; reseal after patch |
 | CRC reseal | **Ported** — `reseal_checksums` / `verify_checksums` from EA DB Editor IL |
 | Game-save CRC fields | **Stale on save** — Legacy does not rewrite TDB CRCs in-game (see below) |
 | Semantic tables (`ubPc`, `kOtt`, …) | **Internal ids in save** — see note below |

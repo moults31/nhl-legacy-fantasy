@@ -45,20 +45,38 @@ pack(unpack(save)) == save
 
 `EAChecksum.dll` is the feudalnate algorithm used by **`MC02Handler`** for Xbox MC02 save packages. EA DB Editor opens MC02-wrapped content, not raw `RosterFile` blobs.
 
-### Discovery results (2026-07-04)
+### Discovery results (2026-07-04, updated)
 
-Brute-force over `_local/game-saves/xbox/{roster1,testroster}.bin`, `tests/fixtures/xbox/roster.bin`, and the vanilla Modding Studio save (`checksum_discover` integration test):
+Brute-force over `_local/game-saves/xbox/{roster1,testroster}.bin`, `tests/fixtures/xbox/roster.bin`, and Modding Studio `vanilla-saves/360/` (`checksum_discover` + `checksum_discover_extended`):
 
 | Candidate | `@0x10` | `@0x28` |
 |-----------|---------|---------|
-| `EAChecksum` over compressed payload | No | No |
-| `EAChecksum` over uncompressed TDB | No | No |
-| `Crc32Be` (EA DB Editor `crc32_be`) over common slices | No | No |
-| zlib `crc32` / adler32 / u32 sum/xor | No | No |
+| `EAChecksum` over compressed payload, DB, header slices | No | No |
+| `Crc32Be` / `!Crc32Be` (EA DB Editor) on same slices | No | No |
+| Chained `Crc32Be` (header seed + payload) | No | No |
+| zlib `crc32`, adler32, MD5/SHA1 truncations | No | No |
 
-Both `@0x10` and `@0x28` change between **ROSTER1** and **TESTROSTER**; `@0x2C` low 16 bits stay `0x0C00` on Legacy saves.
+Oracle values (BE u32):
 
-**Likely implementation:** NHL Modding Studio embeds `crates/tdb-savedata/src/checksum.rs` in `NHL Modding Studio.exe` (Rust). The portable app itself notes the **“second header checksum”** (NHL 12+, `@0x28`) is **not reverse-engineered**. There is **no source tree** — see [REFERENCE-POLICY.md](REFERENCE-POLICY.md). Reverse the embedded Rust in `NHL Modding Studio.exe` and use the McTavish pair as oracle.
+| Save | `@0x10` | `@0x28` |
+|------|---------|---------|
+| roster1 (McTavish pre) | `0x2C7689CF` | `0xF81A7DCD` |
+| testroster (McTavish post) | `0x0B26501D` | `0x4BF1E5FA` |
+| Modding Studio vanilla 360 | `0x182F0A0C` | `0x6F61F311` |
+
+Both checksum fields change on edit; `@0x2C` low 16 bits stay `0x0C00` on Legacy saves.
+
+### Binary RE notes (`NHL Modding Studio.exe`)
+
+From embedded `tdb-savedata` panic strings (no source — [REFERENCE-POLICY.md](REFERENCE-POLICY.md)):
+
+- **`HEADER_LEN = 48`** (`0x30`) — confirmed in `checksum.rs` assertion.
+- Container version at **`0x14 = 4`** on NHL 14 / Legacy saves; Modding Studio treats **NHL 10–11 version-1** containers as read-only (second checksum unknown); **NHL 12–15 write-back** path exists in `pack.rs`.
+- **`EAChecksum` lookup table is not embedded** in the exe — container hash is a different primitive than MC02/`EAChecksum.dll`.
+- CRC polynomial **`0x04C11DB7`** appears in `.rdata` near `checksum.rs` strings (same family as TDB `Crc32Be`), but obvious `!crc32_be` slices did not match oracles.
+- Helper: `tools/pe_xref.py` scans `.text` for RIP-relative `LEA` to string VAs (Rust panic paths often have no direct xrefs).
+
+**Likely implementation:** `tdb-savedata/src/checksum.rs` in the embedded Rust binary — custom input construction over header + zlib payload, dual writes at `@0x10` and `@0x28`.
 
 Next steps:
 
