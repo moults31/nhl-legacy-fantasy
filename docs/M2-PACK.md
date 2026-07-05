@@ -21,7 +21,8 @@ pack(unpack(save)) == save
 | Discovery harness | **Done** — `checksum_discover*.rs`, `checksum_oracle.rs` |
 | Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Partial** — checksums correct; byte-identical repack requires matching deflate |
 | M5 in-game load (unchanged repack) | **Pass** — M5CHK01 |
-| M5 in-game load (edited repack) | **In progress** — M5MCT01 pending operator test |
+| M5 in-game load (edited repack) | **Fail** — stored blocks (M5MCT01), literal-only template tree (TRADEEDIT3) |
+| Template-tree `deflate_template` encoder | **Partial** — zlib round-trip in Rust; in-game load still damaged |
 
 ## Prerequisites
 
@@ -71,8 +72,9 @@ Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{r
 | **M5ANA01** | `roster1` DB + `testroster` template (wrong `@0x2c` + over-compressed zlib) | **Fail** — damaged |
 | **M5ANA02** | `roster1` DB + `roster1` template | **Pass** — McTavish on Anaheim |
 | **M5MCT01** | `testroster` DB with `cPbu.WBbd` patched to Anaheim + repack | **Fail** — damaged (v1 ~818 KB, v2 ~2.456 MB stored blocks) |
+| **TRADEEDIT3** | Crosby/Ovi/Hedman trade edits via template-tree recompress (~2.24 MB) | **Fail** — damaged |
 
-If a damaged M5 slot blocks the title screen, remove it with `python3 tools/install_m5_saves.py --remove M5MCT01`. Legacy auto-loads the active roster on startup.
+If a damaged M5 slot blocks the title screen, remove it with `python3 tools/install_m5_saves.py --remove M5MCT01` (or delete the `ROSTER …` folder + `.header` sidecar). Legacy auto-loads the active roster on startup.
 
 ### Edited repack gate (M5MCT01, confirmed 2026-07-04)
 
@@ -82,19 +84,22 @@ If a damaged M5 slot blocks the title screen, remove it with `python3 tools/inst
 - Zlib header is `78 9c` and payload is ~2.45 MB (near-stored stored blocks)
 - `@0x2c` is copied from the template save
 
-Game originals use a **single dynamic-Huffman deflate block** at ~1:1 ratio (`789cec7b…`). Our encoders (default flate2, stored blocks) produce a different bitstream; the game rejects them as damaged. Single-byte TDB edits cannot reuse the template compressed bytes.
+Game originals use a **single dynamic-Huffman deflate block** at ~1:1 ratio (`789cec7b…`) with LZ backreferences. Our encoders produce a different bitstream; the game rejects them as damaged. Single-byte TDB edits cannot reuse the template compressed bytes unchanged.
 
-**Next:** reverse `pack_xbox_save` from `NHL Modding Studio.exe` (embedded `tdb-savedata`) or clone the original dynamic block tables. Until then, semantic edits work in TDB (`write_field`) but cannot be installed via `pack()`.
+**2026-07-04 — template-tree encoder (`deflate_template.rs`):** clones dynamic Huffman tables from the template save, copies the tree prefix bit-for-bit, re-encodes the edited TDB as literals only, sets `bfinal=1`, and seals container checksums. Rust zlib round-trip passes (~2.24 MB payload vs game ~2.46 MB). **TRADEEDIT3 still fails in-game** — likely because literal-only output drops the template LZ copy stream and no longer matches the ~1:1 payload shape.
+
+**Next:** preserve the template LZ copy op stream and patch only bytes that differ (Modding Studio `pack_xbox_save` path). Until then, semantic edits work in TDB (`write_field` / `roster-cli export`) but cannot be installed via `pack()`.
 
 **Interim for Anaheim baseline:** repack unchanged `roster1.bin` (M5ANA02) or edit in-game from TESTROSTER.
 
 Edited repack requirements learned from M5:
 
 1. **Template match** — use the template save whose header metadata matches the payload lineage.
-2. **Near-stored deflate** — game saves are ~1:1 with `78 9c` (~2.45 MB). Default flate2 (~818 KB) lists but fails load (M5ANA01 / M5MCT01 v1). Edited repacks use stored deflate blocks under `78 9c` (~2.456 MB).
-3. **`@0x2c` override** — upper 16 bits are content-dependent; pass a reference value until the algorithm is reversed (`pack_with_field_0x2c`).
+2. **Near-stored deflate** — game saves are ~1:1 with `78 9c` (~2.45 MB). Default flate2 (~818 KB) lists but fails load (M5ANA01 / M5MCT01 v1). Stored blocks under `78 9c` (~2.456 MB) also fail (M5MCT01 v2, TRADEEDIT).
+3. **Template dynamic trees** — cloning Huffman tables and literal-only re-encode round-trips in Rust (~2.24 MB) but fails load (TRADEEDIT3). Payload must likely preserve LZ copy ops, not just tree definitions.
+4. **`@0x2c` override** — upper 16 bits are content-dependent; pass a reference value until the algorithm is reversed (`pack_with_field_0x2c`).
 
-Install helper: `tools/install_m5_saves.py` (optional `--only M5MCT01`). **Building the blob alone does not install it** — run the script (or copy blob + `.header` sidecar) before refreshing in-game.
+Install helpers: `tools/install_m5_saves.py`, `tools/install_recomp_roster.py` (Windows Recomp save tree + `.header` sidecar). **Building the blob alone does not install it** — run a helper (or copy blob + sidecar) before refreshing in-game.
 
 ### Discovery history
 
