@@ -8,12 +8,12 @@ Scope from [PLAN.md](PLAN.md): read/write EA TDB (`default.db`), reseal internal
 
 | Item | Status |
 |------|--------|
-| `ea-tdb` crate | **In progress** |
+| `ea-tdb` crate | **Done** (2026-07-04) |
 | Directory / table parse | **Done** — EA DB Editor layout (8-byte directory, 40-byte info, 16-byte fields) |
 | Bit-packed field read | **Done** — `read_bits` / `TableLayout::read_field` |
-| Bit-packed field write | **Partial** — `write_field` on `TableLayout`; reseal after patch |
-| CRC reseal | **Ported** — `reseal_checksums` / `verify_checksums` from EA DB Editor IL |
-| Game-save CRC fields | **Stale on save** — Legacy does not rewrite TDB CRCs in-game (see below) |
+| Bit-packed field write | **Done** — `write_field` on `TableLayout` with CRC reseal after patch |
+| CRC reseal | **Done** — `reseal_checksums` / `verify_checksums` from EA DB Editor IL; M3 acceptance test confirms self-consistency |
+| Game-save CRC fields | **Stale on save** — Legacy does not rewrite TDB CRCs in-game; our tool reseal is self-consistent |
 | Semantic tables (`ubPc`, `kOtt`, …) | **Mapped** — `cPbu` = exhibition player bio; team move = `WBbd` (`proteam`) |
 | McTavish move diff fixture | **Available** — `_local/game-saves/xbox/{roster1,testroster}.bin` |
 
@@ -92,6 +92,6 @@ Unpacked Legacy roster `default.db` files do **not** contain literal `ubPc` / `k
 
 ## Next steps
 
-1. M5 operator test **M5MCT01** — **blocked** on game-identical deflate (`pack_xbox_save` RE)
-2. Reverse `@0x2c` upper-16 algorithm (may be coupled to deflate bitstream)
-3. Semantic JSON export/import (M4) — see [M4-SEMANTIC.md](M4-SEMANTIC.md)
+1. ~~M5 operator test **M5MCT01**~~ — resolved via exact-code template deflate re-encode (see M2-PACK.md)
+2. M4: Semantic JSON export/import — see [M4-SEMANTIC.md](M4-SEMANTIC.md)
+3. Reverse `@0x2c` upper-16 algorithm (may be coupled to deflate bitstream)
