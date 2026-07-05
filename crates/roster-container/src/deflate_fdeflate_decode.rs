@@ -1,4 +1,5 @@
 //! Vendored from fdeflate 0.3.7 `read_compressed` — emits LZ ops with identical bit consumption.
+#![allow(dead_code)]
 
 use crate::deflate_inflate::{BitReader, InflateOp, InflateTables};
 use crate::error::{Error, Result};

@@ -1,4 +1,5 @@
 //! fdeflate-compatible inflate tables for roster save deflate streams.
+#![allow(dead_code)]
 //!
 //! Linear canonical Huffman decode mis-decodes some codewords on live roster saves
 //! (early false end-of-block at ~125 KiB). Table-based decode matches fdeflate/libz.
@@ -346,30 +347,6 @@ impl<'a> BitReader<'a> {
         self.buffer >>= nbits;
         self.nbits -= nbits;
         self.bits_consumed += nbits as usize;
-    }
-
-    /// Legacy byte-at-a-time fill for Huffman tree parsing in deflate_template.
-    pub fn fill(&mut self) {
-        while self.nbits <= 56 && !self.remaining.is_empty() {
-            self.buffer |= u64::from(self.remaining[0]) << self.nbits;
-            self.remaining = &self.remaining[1..];
-            self.nbits += 8;
-        }
-    }
-
-    pub fn peek(&self, n: u8) -> u64 {
-        self.peak_bits(n)
-    }
-
-    pub fn consume(&mut self, n: u8) {
-        self.consume_bits(n);
-    }
-
-    pub fn sync_from(&mut self, other: &BitReader<'a>) {
-        self.remaining = other.remaining;
-        self.buffer = other.buffer;
-        self.nbits = other.nbits;
-        self.bits_consumed = other.bits_consumed;
     }
 }
 

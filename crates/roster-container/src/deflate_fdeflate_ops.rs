@@ -1,4 +1,5 @@
-﻿use simd_adler32::Adler32;
+﻿#![allow(dead_code)]
+use simd_adler32::Adler32;
 
 use crate::deflate_fdeflate_huffman::{self, build_table};
 use crate::deflate_fdeflate_tables::{
@@ -258,7 +259,6 @@ impl Decompressor {
         };
     }
 
-    #[allow(dead_code)]
     fn capture_tree_lengths(&mut self) {
         let hlit = self.header.hlit;
         let hdist = self.header.hdist;
