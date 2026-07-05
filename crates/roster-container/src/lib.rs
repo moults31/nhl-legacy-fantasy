@@ -4,6 +4,7 @@
 //! and a zlib-compressed payload that is a bit-identical `default.db` TDB file.
 
 mod container_checksum;
+mod deflate_template;
 mod ea_checksum;
 mod ea_checksum_table;
 mod error;

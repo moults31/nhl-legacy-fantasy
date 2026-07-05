@@ -1,4 +1,5 @@
 use crate::container_checksum;
+use crate::deflate_template;
 use crate::error::{Error, Result};
 use crate::format::{Platform, RosterHeader, XBOX360_HEADER_SIZE};
 use crate::unpack::{decompress_zlib, validate_tdb_magic};
@@ -20,7 +21,7 @@ pub fn pack(db: &[u8], template: &[u8]) -> Result<Vec<u8>> {
         return Ok(template.to_vec());
     }
 
-    let compressed = compress_zlib(db)?;
+    let compressed = compress_zlib(db, Some(&template[header.payload_offset..]))?;
     let mut out = Vec::with_capacity(XBOX360_HEADER_SIZE + compressed.len());
     out.extend_from_slice(&template[..XBOX360_HEADER_SIZE]);
 
@@ -52,15 +53,15 @@ pub fn pack_unchanged(db: &[u8], template: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-fn compress_zlib(data: &[u8]) -> Result<Vec<u8>> {
-    // Game saves are ~1:1 under `78 9c` (~2.45 MB). Default flate2 (~818 KB) fails load
-    // (M5ANA01 / M5MCT01). flate2 level 0 emits `08 1d`, not zlib `78 01`. Build stored
-    // deflate blocks under a standard `78 9c` wrapper instead (~2.456 MB on testroster.db).
+fn compress_zlib(data: &[u8], template_zlib: Option<&[u8]>) -> Result<Vec<u8>> {
+    if let Some(template) = template_zlib {
+        return deflate_template::compress_zlib_from_template(data, template);
+    }
     Ok(compress_zlib_stored_blocks(data))
 }
 
 /// Zlib stream: `78 9c` + stored deflate blocks + Adler-32 (BE).
-fn compress_zlib_stored_blocks(data: &[u8]) -> Vec<u8> {
+pub(crate) fn compress_zlib_stored_blocks(data: &[u8]) -> Vec<u8> {
     let chunk_count = data.len().div_ceil(65_535);
     let mut out = Vec::with_capacity(6 + data.len() + chunk_count * 5);
     out.extend_from_slice(&[0x78, 0x9c]);
@@ -114,7 +115,7 @@ pub fn pack_with_field_0x2c(db: &[u8], template: &[u8], field_0x2c: u32) -> Resu
         return Ok(template.to_vec());
     }
 
-    let compressed = compress_zlib(db)?;
+    let compressed = compress_zlib(db, Some(&template[header.payload_offset..]))?;
     let mut out = Vec::with_capacity(XBOX360_HEADER_SIZE + compressed.len());
     out.extend_from_slice(&template[..XBOX360_HEADER_SIZE]);
 
@@ -180,7 +181,7 @@ mod tests {
             return;
         }
         let db = std::fs::read(db_path).expect("db");
-        let compressed = compress_zlib(&db).expect("compress");
+        let compressed = compress_zlib(&db, None).expect("compress");
         assert_eq!(
             &compressed[..2],
             crate::format::ZLIB_MAGIC,
