@@ -13,7 +13,7 @@ fn probe_template_tree_header() {
     }
     let container = std::fs::read(path).expect("read");
     let zlib = &container[48..];
-    let db = unpack(zlib).expect("unpack");
+    let db = unpack(&container).expect("unpack");
     eprintln!("db len={}", db.len());
 
     let deflate = &zlib[2..zlib.len() - 4];
