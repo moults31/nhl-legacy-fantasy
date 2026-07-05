@@ -283,6 +283,7 @@ dependencies = [
  "fdeflate",
  "flate2",
  "sha2",
+ "simd-adler32",
  "thiserror",
 ]
 
