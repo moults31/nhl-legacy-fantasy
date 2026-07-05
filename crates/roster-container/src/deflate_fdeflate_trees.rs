@@ -1,4 +1,5 @@
 //! Vendored from fdeflate 0.3.7 `read_code_length_codes` + `read_code_lengths` + `build_tables`.
+#![allow(dead_code)]
 //!
 //! Linear canonical Huffman decode for CLCL symbols mis-reads some code lengths on live roster
 //! saves, producing inflate tables that false-trigger end-of-block at ~125 KiB.

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::deflate_fdeflate_ops::{EXCEPTIONAL_ENTRY, LITERAL_ENTRY};
 
 const fn compute_codes<const NSYMS: usize>(lengths: &[u8; NSYMS]) -> Option<[u16; NSYMS]> {
