@@ -29,3 +29,18 @@ The game still writes saves under Steam compatdata when launched via `launch-nhl
 - Prefer **Rust** for tools and libraries unless there is a strong reason not to.
 - Follow [docs/PLAN.md](docs/PLAN.md) for scope and milestones.
 - Do not commit binaries, game assets, or third-party modding tool trees from `_local/`.
+
+## Archived diagnostic scripts
+
+The `DO-NOT-MERGE` branch archives ~70 diagnostic/experimental Python scripts
+and Rust test files from the roster move discovery phase (D1D2 chain reverse
+engineering, MS CC team ID mapping, CRC analysis). These are one-off tools, not
+part of the active pipeline. If you need to revisit a particular analysis, check
+that branch; do not merge it into `main`.
+
+### Tools kept on `main`
+
+| Path | Purpose |
+|------|---------|
+| `tools/install_recomp_roster.py` | Install a packed roster blob into the game save tree |
+| `tools/gen_roster_db.py` | Regenerate `roster_db.rs` from CSV exports |
