@@ -1,7 +1,6 @@
 mod move_player;
 
 use std::fs;
-use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -72,7 +71,7 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
     },
-    /// Move a player to a new team (TRADEEDIT5-based, with MS normalization).
+    /// Move a player to a new team (TRADEEDIT5-based, with MS normalization and CRC reseal).
     MovePlayer {
         /// Packed roster save input (e.g., TRADEEDIT5).
         input: PathBuf,
@@ -85,12 +84,6 @@ enum Commands {
         /// Destination team (name or numeric ID).
         #[arg(long)]
         team: String,
-        /// Reference save to copy CRCs from (packed .bin or raw .db auto-detected).
-        #[arg(long)]
-        reference: Option<PathBuf>,
-        /// Skip CRC copy. Only use when confident CRCs aren't needed.
-        #[arg(long, default_value_t = false)]
-        no_crcs: bool,
         #[arg(short, long)]
         output: PathBuf,
     },
@@ -129,10 +122,8 @@ fn main() -> Result<()> {
             player_first,
             player_last,
             team,
-            reference,
-            no_crcs,
             output,
-        } => move_player_command(input, player_first, player_last, team, reference, no_crcs, output),
+        } => move_player_command(input, player_first, player_last, team, output),
     }
 }
 
@@ -281,8 +272,6 @@ fn move_player_command(
     player_first: String,
     player_last: String,
     team: String,
-    reference: Option<PathBuf>,
-    no_crcs: bool,
     output: PathBuf,
 ) -> Result<()> {
     let packed = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
@@ -309,35 +298,7 @@ fn move_player_command(
     let team_id = move_player::find_team(&team)
         .with_context(|| format!("unknown team: {team}"))?;
 
-    let reference_db = if no_crcs {
-        None
-    } else {
-        match reference {
-            Some(ref_path) => {
-                let ref_data = fs::read(&ref_path)
-                    .with_context(|| format!("read reference {}", ref_path.display()))?;
-                // Auto-detect: if starts with RosterFile magic, unpack it
-                let ref_db = if ref_data.starts_with(b"RosterFile") {
-                    let ref_header = roster_container::RosterHeader::parse(&ref_data)
-                        .context("parse reference header")?;
-                    let mut dec = flate2::read::ZlibDecoder::new(
-                        &ref_data[ref_header.payload_offset..],
-                    );
-                    let mut db = Vec::new();
-                    dec.read_to_end(&mut db)
-                        .with_context(|| format!("decompress reference {}", ref_path.display()))?;
-                    db
-                } else {
-                    // Assume raw .db
-                    ref_data.to_vec()
-                };
-                Some(ref_db)
-            }
-            None => None,
-        }
-    };
-
-    let result = move_player::build_move(&packed, player, team_id, reference_db.as_deref())
+    let result = move_player::build_move(&packed, player, team_id)
         .context("build player move")?;
 
     write_output(&output, &result)?;

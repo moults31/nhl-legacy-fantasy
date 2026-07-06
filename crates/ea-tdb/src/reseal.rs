@@ -1,11 +1,20 @@
 //! Reseal EA TDB internal CRCs (`DBFileInfo.CalcChecksums` in EA DB Editor).
+//!
+//! Uses standard CRC-32 BE (poly 0x04C11DB7, byte-at-a-time), which matches
+//! Modding Studio's computation for `prior_crc`, `header_crc`, and EOF CRC.
 
-use crate::crc::Crc32Be;
+use crate::crc_standard;
 use crate::directory::Directory;
 use crate::error::{Error, Result};
 use crate::format::{
     write_u32_be, TdbHeader, HEADER_CRC_OFFSET, TABLE_INFO_SIZE,
 };
+
+/// Compute the raw stored CRC value (init 0xFFFFFFFF, no final XOR).
+/// The TDB stores `!crc_standard(data)`, which strips the standard final XOR.
+fn crc_stored(data: &[u8]) -> u32 {
+    !crc_standard::crc32_be(data)
+}
 
 /// Recompute and write file header, table `prior_crc` / `header_crc`, and EOF CRC.
 pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
@@ -22,14 +31,14 @@ pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
         });
     }
 
-    let crc = Crc32Be::new();
     let table_data_start = directory.table_data_start;
-    let dir_len = (table_count * 8) as u32;
+    let dir_len = table_count * 8;
 
-    let header_crc = !crc.crc32_be(0, data, 20, 0);
-    write_u32_be(data, HEADER_CRC_OFFSET, header_crc);
+    // Header CRC: first 20 bytes
+    write_u32_be(data, HEADER_CRC_OFFSET, crc_stored(&data[..20]));
 
-    let mut prior = !crc.crc32_be(0, data, dir_len, 24);
+    // Chain: gap from directory end (offset 24) to first table
+    let mut prior = crc_stored(&data[24..24 + dir_len]);
     let mut last_end = 0usize;
 
     for (i, entry) in directory.entries.iter().enumerate() {
@@ -39,10 +48,19 @@ pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
         }
 
         write_u32_be(data, info_off, prior);
-        let table_header_crc = !crc.crc32_be(0, data, 32, info_off as u32 + 4);
-        write_u32_be(data, info_off + 36, table_header_crc);
 
-        last_end = info_off + TABLE_INFO_SIZE;
+        // Table header CRC: 32 bytes starting at info_off + 4
+        let hdr_end = info_off + TABLE_INFO_SIZE;
+        if hdr_end > data.len() {
+            return Err(Error::TooSmall { len: data.len() });
+        }
+        write_u32_be(
+            data,
+            info_off + 36,
+            crc_stored(&data[info_off + 4..info_off + 36]),
+        );
+
+        last_end = hdr_end;
         if i + 1 < table_count {
             let next_start =
                 table_data_start + directory.entries[i + 1].data_offset as usize;
@@ -51,12 +69,10 @@ pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
                     reason: "table offsets overlap",
                 });
             }
-            let gap = (next_start - last_end) as u32;
-            let gap_end = last_end + gap as usize;
-            if gap_end > data.len() {
+            if next_start > data.len() {
                 return Err(Error::TooSmall { len: data.len() });
             }
-            prior = !crc.crc32_be(0, data, gap, last_end as u32);
+            prior = crc_stored(&data[last_end..next_start]);
         }
     }
 
@@ -66,8 +82,7 @@ pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
             reason: "last table extends past EOF CRC",
         });
     }
-    let eof_crc = !crc.crc32_be(0, data, (eof_offset - last_end) as u32, last_end as u32);
-    write_u32_be(data, eof_offset, eof_crc);
+    write_u32_be(data, eof_offset, crc_stored(&data[last_end..eof_offset]));
 
     Ok(())
 }
