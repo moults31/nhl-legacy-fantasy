@@ -81,45 +81,45 @@ parts.append("")
 
 # Team table
 parts.append("/// Team metadata.")
-parts.append("pub struct TeamInfo { pub name: &'static str, pub id: u8, pub d3: u8, pub d4: u8 }")
+parts.append("pub struct TeamInfo { pub name: &'static str, pub id: u8, pub d3: u8, pub d4: u8, pub ms_cc: u8 }")
 parts.append("")
 parts.append("/// Lookup team info by team_id (1-indexed proteam value).")
 parts.append("pub fn team_info(tid: u8) -> Option<TeamInfo> {")
 parts.append("    match tid {")
 team_map = [
-    (1, "ANA", 0x00, 0x00),
-    (2, "BOS", 0x00, 0x00),
-    (3, "BUF", 0x00, 0x00),
-    (5, "CGY", 0x00, 0x00),
-    (6, "CAR", 0x00, 0x00),
-    (7, "CHI", 0x00, 0x00),
-    (8, "COL", 0x00, 0x00),
-    (9, "CBJ", 0x00, 0xAC),
-    (10, "DAL", 0x00, 0x00),
-    (11, "DET", 0x00, 0x00),
-    (12, "EDM", 0x00, 0x00),
-    (13, "FLA", 0x00, 0x00),
-    (14, "LAK", 0x01, 0x10),
-    (15, "MIN", 0x00, 0x00),
-    (16, "MTL", 0x00, 0x00),
-    (17, "NSH", 0x00, 0x00),
-    (18, "NJD", 0x00, 0x00),
-    (19, "NYI", 0x00, 0x00),
-    (20, "NYR", 0x00, 0x00),
-    (21, "OTT", 0x00, 0x00),
-    (22, "PHI", 0x00, 0x00),
-    (24, "PIT", 0x00, 0x00),
-    (25, "SJS", 0x00, 0x00),
-    (27, "STL", 0x00, 0x00),
-    (28, "TBL", 0x00, 0x00),
-    (29, "TOR", 0x00, 0x00),
-    (30, "VAN", 0x00, 0x00),
-    (31, "VGK", 0x00, 0x00),
-    (32, "WPG", 0x00, 0x00),
-    (33, "WSH", 0x00, 0x00),
+    (1, "ANA", 0x00, 0x00, 0),
+    (2, "BOS", 0x00, 0x33, 2),
+    (3, "BUF", 0x00, 0x00, 3),
+    (5, "CGY", 0x00, 0x00, 4),
+    (6, "CAR", 0x00, 0x00, 5),
+    (7, "CHI", 0x00, 0x00, 6),
+    (8, "COL", 0x00, 0x00, 7),
+    (9, "CBJ", 0x00, 0xAC, 8),
+    (10, "DAL", 0x00, 0x00, 9),
+    (11, "DET", 0x00, 0x00, 10),
+    (12, "EDM", 0x00, 0x00, 11),
+    (13, "FLA", 0x00, 0x00, 12),
+    (14, "LAK", 0x01, 0x10, 13),
+    (15, "MIN", 0x00, 0x00, 14),
+    (16, "MTL", 0x00, 0x00, 15),
+    (17, "NSH", 0x00, 0x00, 16),
+    (18, "NJD", 0x00, 0x00, 17),
+    (19, "NYI", 0x00, 0x00, 18),
+    (20, "NYR", 0x00, 0x00, 19),
+    (21, "OTT", 0x00, 0x00, 20),
+    (22, "PHI", 0x00, 0x00, 21),
+    (24, "PIT", 0x00, 0x00, 23),
+    (25, "SJS", 0x00, 0x00, 25),
+    (27, "STL", 0x00, 0x00, 24),
+    (28, "TBL", 0x00, 0x00, 26),
+    (29, "TOR", 0x00, 0x00, 27),
+    (30, "VAN", 0x00, 0x00, 28),
+    (31, "VGK", 0x00, 0x00, 31),
+    (32, "WPG", 0x00, 0x00, 1),
+    (33, "WSH", 0x00, 0x00, 29),
 ]
-for tid, name, d3, d4 in team_map:
-    parts.append(f"        {tid} => Some(TeamInfo {{ name: \"{name}\", id: {tid}, d3: 0x{d3:02x}, d4: 0x{d4:02x} }}),")
+for tid, name, d3, d4, ms_cc in team_map:
+    parts.append(f"        {tid} => Some(TeamInfo {{ name: \"{name}\", id: {tid}, d3: 0x{d3:02x}, d4: 0x{d4:02x}, ms_cc: {ms_cc} }}),")
 parts.append("        _ => None,")
 parts.append("    }")
 parts.append("}")
