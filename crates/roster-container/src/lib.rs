@@ -25,5 +25,5 @@ pub use ea_checksum::EaChecksum;
 pub use error::{Error, Result};
 pub use format::{Platform, RosterHeader, XBOX360_HEADER_SIZE, XBOX360_MAGIC, PS3_MAGIC};
 pub use deflate_template::{compress_zlib_from_template, inspect_deflate_blocks, DeflateBlockMeta};
-pub use pack::{compress_zlib_stored_blocks, pack, pack_stored, pack_unchanged, pack_with_field_0x2c, pack_with_fdeflate};
+pub use pack::{compress_zlib_stored_blocks, pack, pack_stored, pack_unchanged};
 pub use unpack::{detect_platform, unpack, unpack_with_header};

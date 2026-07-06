@@ -3,15 +3,10 @@
 //! Unlike [`reseal_checksums`], this only recomputes the CRCs that MS
 //! actually touches: RBQQ.prior_crc, ulGe.header_crc, caBZ.prior_crc.
 
-use crate::crc_standard;
+use crate::crc_standard::crc_stored;
 use crate::directory::Directory;
 use crate::error::{Error, Result};
 use crate::format::{write_u32_be, TdbHeader, TABLE_INFO_SIZE};
-
-/// Compute the raw stored CRC value (init 0xFFFFFFFF, no final XOR).
-fn crc_stored(data: &[u8]) -> u32 {
-    !crc_standard::crc32_be(data)
-}
 
 /// Recompute only the 3 CRC regions that Modding Studio updates.
 ///

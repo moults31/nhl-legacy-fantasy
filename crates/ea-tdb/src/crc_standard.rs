@@ -1,8 +1,7 @@
 //! Standard byte-at-a-time CRC-32 BE (poly 0x04C11DB7).
 //!
 //! This is the algorithm Modding Studio uses for TDB gap chain CRCs
-//! (`prior_crc`) and table header CRCs. It differs from [`super::Crc32Be`]
-//! which uses a nibble-at-a-time variant that produces different output.
+//! (`prior_crc`), table header CRCs, and the EOF CRC.
 
 const CRC_POLY_BE: u32 = 0x04C1_1DB7;
 
@@ -37,6 +36,13 @@ pub fn crc32_be(data: &[u8]) -> u32 {
         crc = (crc << 8) ^ table[idx];
     }
     crc ^ 0xFFFF_FFFF
+}
+
+/// The raw stored CRC value: standard CRC-32 BE with the final XOR stripped.
+///
+/// TDB `prior_crc` and `header_crc` fields store `!crc32_be(data)`.
+pub fn crc_stored(data: &[u8]) -> u32 {
+    !crc32_be(data)
 }
 
 #[cfg(test)]

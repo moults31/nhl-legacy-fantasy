@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use ea_tdb::TdbFile;
-use roster_container::{pack_with_field_0x2c, unpack, verify_checksums, RosterHeader};
+use roster_container::{pack, unpack, verify_checksums, RosterHeader};
 
 fn fixture_root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -70,7 +70,7 @@ fn build_m5mct01_edited_repack() {
 
     let h_test = RosterHeader::parse(&test_container).expect("testroster header");
     // Edited DB keeps testroster layout; use testroster @0x2c (roster1 value failed load at ~818 KB).
-    let packed = pack_with_field_0x2c(&db, &test_container, h_test.field_0x2c)
+    let packed = pack(&db, &test_container, h_test.field_0x2c)
         .expect("pack edited db");
 
     verify_checksums(&packed).expect("sealed checksums");

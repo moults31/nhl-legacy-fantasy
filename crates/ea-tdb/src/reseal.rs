@@ -3,18 +3,12 @@
 //! Uses standard CRC-32 BE (poly 0x04C11DB7, byte-at-a-time), which matches
 //! Modding Studio's computation for `prior_crc`, `header_crc`, and EOF CRC.
 
-use crate::crc_standard;
+use crate::crc_standard::crc_stored;
 use crate::directory::Directory;
 use crate::error::{Error, Result};
 use crate::format::{
     write_u32_be, TdbHeader, HEADER_CRC_OFFSET, TABLE_INFO_SIZE,
 };
-
-/// Compute the raw stored CRC value (init 0xFFFFFFFF, no final XOR).
-/// The TDB stores `!crc_standard(data)`, which strips the standard final XOR.
-fn crc_stored(data: &[u8]) -> u32 {
-    !crc_standard::crc32_be(data)
-}
 
 /// Recompute and write file header, table `prior_crc` / `header_crc`, and EOF CRC.
 pub fn reseal_checksums(data: &mut [u8]) -> Result<()> {
