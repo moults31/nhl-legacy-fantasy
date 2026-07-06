@@ -21,7 +21,7 @@ pack(unpack(save)) == save
 | Discovery harness | **Done** — `checksum_discover*.rs`, `checksum_oracle.rs` |
 | Full M2 acceptance (`pack(unpack(save)) == save` for edited saves) | **Partial** — checksums correct; byte-identical repack requires matching deflate |
 | M5 in-game load (unchanged repack) | **Pass** — M5CHK01 |
-| M5 in-game load (edited repack) | **Pending** — TRADEEDIT5 (exact-code re-encode) installed, awaiting test; earlier attempts failed (M5MCT01, TRADEEDIT3, TRADEEDIT4) |
+| M5 in-game load (edited repack) | **Pass** — TRADEEDIT5 loads in-game (Crosby/WSH, Ovechkin/TB, Hedman/PIT all appear correctly). Exact-code deflate re-encode is the working solution. Earlier attempts failed (M5MCT01, TRADEEDIT3, TRADEEDIT4) |
 | Template-tree `deflate_template` encoder | **Done** — exact-code full re-encode; bit-identical for unchanged DB, flate2+fdeflate round-trip for edited DB confirmed (2026-07-04) |
 
 ## Prerequisites
@@ -74,7 +74,7 @@ Oracle validation: `tests/checksum_oracle.rs` against `_local/game-saves/xbox/{r
 | **M5MCT01** | `testroster` DB with `cPbu.WBbd` patched to Anaheim + repack | **Fail** — damaged (v1 ~818 KB, v2 ~2.456 MB stored blocks) |
 | **TRADEEDIT3** | Crosby/Ovi/Hedman trade edits via template-tree recompress (~2.24 MB) | **Fail** — damaged |
 | **TRADEEDIT4** | Trade edits via drift-splice patcher | **Null result** — "loads" but shows original teams; payload fails any conformant inflater, so the game silently fell back rather than validating |
-| **TRADEEDIT5** | Trade edits via exact-code full re-encode (`ROSTER 20260704211000`) | **Installed** — awaiting in-game test; Rust round-trip (flate2+fdeflate) passes |
+| **TRADEEDIT5** | Trade edits via exact-code full re-encode (`ROSTER 20260704211000`) | **Pass** — Crosby/WSH, Ovechkin/TB, Hedman/PIT appear correctly in-game; Rust round-trip (flate2+fdeflate) confirmed |
 
 If a damaged M5 slot blocks the title screen, remove it with `python3 tools/install_m5_saves.py --remove M5MCT01` (or delete the `ROSTER …` folder + `.header` sidecar). Legacy auto-loads the active roster on startup.
 

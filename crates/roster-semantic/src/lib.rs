@@ -12,3 +12,4 @@ mod string_field;
 pub use export::{export_roster, PlayerExport, RosterExport, TeamExport};
 pub use import::{apply_import, ImportPatch};
 pub use legacy::LegacyRosterTables;
+pub use string_field::read_string_field;

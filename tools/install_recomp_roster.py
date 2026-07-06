@@ -27,12 +27,18 @@ def write_utf16_name(header: bytearray, name: str, start: int = 0x09, end: int =
 
 
 def patch_header(template: bytes, folder_name: str, display_name: str) -> bytes:
+    """Patch a game-created .header (328 bytes) with a new display name."""
     header = bytearray(template)
     write_utf16_name(header, display_name)
-    ascii_block = f"{folder_name}\0".encode("ascii")
-    if len(ascii_block) > 32:
-        raise ValueError("header ascii block too long")
-    header[0x108 : 0x108 + 32] = ascii_block + bytes(32 - len(ascii_block))
+    # Game headers are 328 bytes; if the template is larger (e.g. a RosterFile bin
+    # misused as a template), truncate to 328 to produce a valid sidecar.
+    if len(header) > 328:
+        header = header[:328]
+    if len(header) >= 0x128:
+        ascii_block = f"{folder_name}\0".encode("ascii")
+        if len(ascii_block) > 32:
+            raise ValueError("header ascii block too long")
+        header[0x108 : 0x108 + 32] = ascii_block + bytes(32 - len(ascii_block))
     return bytes(header)
 
 

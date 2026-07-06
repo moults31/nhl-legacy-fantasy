@@ -261,6 +261,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "ea-tdb",
+ "flate2",
  "roster-container",
  "roster-semantic",
  "serde_json",
