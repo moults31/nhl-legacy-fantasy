@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use ea_tdb::reseal_checksums;
+use ea_tdb::{reseal_checksums, reseal_ms_crcs};
 use roster_container::{pack, pack_stored, pack_with_fdeflate, pack_with_field_0x2c, unpack};
 use roster_semantic::{apply_import, export_roster, RosterExport};
 
@@ -65,11 +65,16 @@ enum Commands {
         #[arg(short, long)]
         output: PathBuf,
     },
-    /// Recompute and write TDB internal CRCs (header, table chain, EOF).
+    /// Recompute and write TDB internal CRCs. By default reseals all CRCs
+    /// (header, table chain, EOF). Use --ms-only to reseal only the 3 CRCs
+    /// that Modding Studio updates (RBQQ.prior, ulGe.header, caBZ.prior).
     Reseal {
         input: PathBuf,
         #[arg(short, long)]
         output: PathBuf,
+        /// Reseal only the 3 MS-specific CRCs (not full TDB).
+        #[arg(long, default_value_t = false)]
+        ms_only: bool,
     },
     /// Move a player to a new team (TRADEEDIT5-based, with MS normalization and CRC reseal).
     MovePlayer {
@@ -116,7 +121,7 @@ fn main() -> Result<()> {
             patches,
             output,
         } => import_command(input, patches, output),
-        Commands::Reseal { input, output } => reseal_command(input, output),
+        Commands::Reseal { input, output, ms_only } => reseal_command(input, output, ms_only),
         Commands::MovePlayer {
             input,
             player_first,
@@ -250,15 +255,24 @@ fn import_command(input: PathBuf, patches: PathBuf, output: PathBuf) -> Result<(
     Ok(())
 }
 
-fn reseal_command(input: PathBuf, output: PathBuf) -> Result<()> {
+fn reseal_command(input: PathBuf, output: PathBuf, ms_only: bool) -> Result<()> {
     let mut db = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
-    reseal_checksums(&mut db).context("reseal TDB checksums")?;
+    if ms_only {
+        reseal_ms_crcs(&mut db).context("reseal MS CRCs")?;
+        eprintln!(
+            "resealed MS CRCs (RBQQ.prior, ulGe.header, caBZ.prior) -> {} ({} bytes)",
+            output.display(),
+            db.len()
+        );
+    } else {
+        reseal_checksums(&mut db).context("reseal TDB checksums")?;
+        eprintln!(
+            "resealed TDB CRCs (full) -> {} ({} bytes)",
+            output.display(),
+            db.len()
+        );
+    }
     write_output(&output, &db)?;
-    eprintln!(
-        "resealed TDB CRCs -> {} ({} bytes)",
-        output.display(),
-        db.len()
-    );
     Ok(())
 }
 
