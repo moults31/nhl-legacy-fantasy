@@ -1,4 +1,5 @@
 mod move_player;
+mod roster_db;
 
 use std::fs;
 use std::path::PathBuf;
@@ -290,29 +291,22 @@ fn move_player_command(
 ) -> Result<()> {
     let packed = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
 
-    let player = move_player::KNOWN_PLAYERS
-        .iter()
-        .find(|p| {
-            p.first_name.eq_ignore_ascii_case(&player_first)
-                && p.last_name.eq_ignore_ascii_case(&player_last)
-        })
-        .with_context(|| {
-            format!(
-                "player {} {} not found in known players list (available: {})",
-                player_first,
-                player_last,
-                move_player::KNOWN_PLAYERS
-                    .iter()
-                    .map(|p| format!("{} {}", p.first_name, p.last_name))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        })?;
+    // Parse team ID
+    let team_id: u8 = if let Ok(id) = team.parse::<u8>() {
+        id
+    } else {
+        roster_db::find_team(&team)
+            .map(|t| t.id)
+            .with_context(|| format!("unknown team: {team}"))?
+    };
 
-    let team_id = move_player::find_team(&team)
-        .with_context(|| format!("unknown team: {team}"))?;
+    let moves = [move_player::PlayerMove {
+        first_name: player_first.clone(),
+        last_name: player_last.clone(),
+        team_id,
+    }];
 
-    let result = move_player::build_move(&packed, player, team_id)
+    let result = move_player::build_moves(&packed, &moves)
         .context("build player move")?;
 
     write_output(&output, &result)?;
