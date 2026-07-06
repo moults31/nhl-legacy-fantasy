@@ -45,18 +45,19 @@ enum Commands {
         output: PathBuf,
     },
     /// Move a player to a new team.
+    /// Repeat --first/--last/--team for multiple moves in one save.
     MovePlayer {
         /// Packed roster save input (e.g., TRADEEDIT5).
         input: PathBuf,
-        /// Player first name.
+        /// Player first name (repeatable).
         #[arg(long)]
-        first: String,
-        /// Player last name.
+        first: Vec<String>,
+        /// Player last name (repeatable, paired with --first).
         #[arg(long)]
-        last: String,
-        /// Destination team: numeric ID, abbreviation (CBJ, BOS), or full name.
+        last: Vec<String>,
+        /// Destination team: numeric ID, abbreviation, or full name (repeatable).
         #[arg(long)]
-        team: String,
+        team: Vec<String>,
         #[arg(short, long)]
         output: PathBuf,
     },
@@ -133,26 +134,40 @@ fn reseal_command(input: PathBuf, output: PathBuf, ms_only: bool) -> Result<()> 
 
 fn move_player_command(
     input: PathBuf,
-    first: String,
-    last: String,
-    team: String,
+    first: Vec<String>,
+    last: Vec<String>,
+    team: Vec<String>,
     output: PathBuf,
 ) -> Result<()> {
+    let len = first.len();
+    if len == 0 || last.len() != len || team.len() != len {
+        anyhow::bail!(
+            "need equal numbers of --first ({}), --last ({}), --team ({}) arguments",
+            first.len(), last.len(), team.len()
+        );
+    }
+
     let packed = fs::read(&input).with_context(|| format!("read {}", input.display()))?;
 
-    let team_id: u8 = if let Ok(id) = team.parse() {
-        id
-    } else {
-        roster_db::find_team(&team)
-            .map(|t| t.id)
-            .with_context(|| format!("unknown team: {team}"))?
-    };
+    let mut moves = Vec::with_capacity(len);
+    for i in 0..len {
+        let team_id: u8 = if let Ok(id) = team[i].parse() {
+            id
+        } else {
+            roster_db::find_team(&team[i])
+                .map(|t| t.id)
+                .with_context(|| format!("unknown team: {}", team[i]))?
+        };
+        moves.push(move_player::PlayerMove {
+            first_name: first[i].clone(),
+            last_name: last[i].clone(),
+            team_id,
+        });
+    }
 
-    let moves = [move_player::PlayerMove { first_name: first, last_name: last, team_id }];
-    let result = move_player::build_moves(&packed, &moves).context("build player move")?;
-
+    let result = move_player::build_moves(&packed, &moves).context("build player moves")?;
     write_output(&output, &result)?;
-    eprintln!("moved to team {team_id} -> {} ({} bytes)", output.display(), result.len());
+    eprintln!("wrote {} moves -> {} ({} bytes)", moves.len(), output.display(), result.len());
     Ok(())
 }
 

@@ -1,9 +1,22 @@
-﻿//! Apply a player team move to a clean default_orig.db roster save.
+﻿//! Apply player team moves to a clean roster save.
 //!
-//! Pipeline: unpack packed save -> edit player + edit-log -> reseal 3 CRCs -> repack.
+//! Pipeline: unpack packed save -> edit player records + edit-log -> reseal 3 CRCs -> repack.
 //!
 //! D1D2 discovery chain (programmatic, no hardcoded player maps):
 //!   cPbu[player].wBIz -> ZBac[first].vfEq -> eGlu[XSWT==vfEq].bytes[5..7]
+//!
+//! Edit-log format (reverse-engineered from Modding Studio output):
+//!   16-byte stride per entry (10 data + 6 zero-padding):
+//!     +0        CC (target team Modding Studio id)
+//!     +1..+3    0x000000
+//!     +4        Original eGlu byte 4 (Dressed flag)
+//!     +5        D1 (displaced eGlu byte 5, Captain)
+//!     +6        D2 (displaced eGlu byte 6, Player Style)
+//!     +7        d3 (target team d3)
+//!     +8        d4 (target team d4)
+//!     +9        0x00
+//!     +10..+15  0x000000000000 (padding)
+//!   eGlu tracker (rec 3593): copies first entry's full 16 bytes
 
 use anyhow::{Context, Result};
 use ea_tdb::{Endian, FieldDescriptor, TdbFile, TableLayout};
@@ -14,6 +27,9 @@ use crate::roster_db;
 const EGLU_TRACKER_REC: usize = 3593;
 const EGLU_REC_SIZE: usize = 16;
 const EDIT_LOG_OFF: usize = 0x1B97CC;
+const EDIT_LOG_ENTRY_STRIDE: usize = 16;
+const EDIT_LOG_ENTRY_COUNT: usize = 8;
+const EDIT_LOG_SIZE: usize = EDIT_LOG_ENTRY_COUNT * EDIT_LOG_ENTRY_STRIDE;
 const CRC_COUNTER_OFF: usize = 0x1AB24B;
 const CRC_COUNTER_BASE: u8 = 0x09;
 
@@ -28,9 +44,16 @@ pub fn build_moves(packed_input: &[u8], moves: &[PlayerMove]) -> Result<Vec<u8>>
         .context("parse roster container header")?;
     let mut db = unpack(packed_input).context("unpack roster container")?;
 
+    // Zero the entire edit-log region so stale entries from previous
+    // sessions don't survive as orphans (the Carlsson-duplication bug).
+    db[EDIT_LOG_OFF..EDIT_LOG_OFF + EDIT_LOG_SIZE].fill(0);
+
     let ctx = TdbContext::new(&db).context("parse TDB for D1D2 discovery")?;
-    for mv in moves {
-        apply_single_move(&mut db, mv, &ctx)?;
+    for (entry_idx, mv) in moves.iter().enumerate() {
+        if entry_idx >= EDIT_LOG_ENTRY_COUNT {
+            anyhow::bail!("too many moves ({}) — edit-log supports at most {EDIT_LOG_ENTRY_COUNT}", moves.len());
+        }
+        apply_single_move(&mut db, mv, entry_idx, &ctx)?;
     }
     ea_tdb::reseal_ms_crcs(&mut db).context("reseal MS CRCs")?;
 
@@ -103,7 +126,7 @@ impl TdbContext {
     }
 }
 
-fn apply_single_move(db: &mut [u8], mv: &PlayerMove, ctx: &TdbContext) -> Result<()> {
+fn apply_single_move(db: &mut [u8], mv: &PlayerMove, entry_idx: usize, ctx: &TdbContext) -> Result<()> {
     let name = format!("{} {}", mv.first_name, mv.last_name);
     let (csv_rec, _pid) = roster_db::find_player(&name)
         .with_context(|| format!("player \"{name}\" not found in roster database"))?;
@@ -126,19 +149,39 @@ fn apply_single_move(db: &mut [u8], mv: &PlayerMove, ctx: &TdbContext) -> Result
     let (eglu_rec, eglu_b4, d1, d2) = ctx.find_displaced_eglu(db, cpbu_idx)
         .with_context(|| format!("cannot find displaced eGlu for \"{name}\" (cPbu[{cpbu_idx}])"))?;
 
-    // Write edit-log
-    let cc = team.ms_cc;
-    db[EDIT_LOG_OFF] = cc;
-    db[EDIT_LOG_OFF + 4] = eglu_b4;
-    db[EDIT_LOG_OFF + 5] = d1;
-    db[EDIT_LOG_OFF + 6] = d2;
-    db[EDIT_LOG_OFF + 7] = team.d3;
-    db[EDIT_LOG_OFF + 8] = team.d4;
-    db[EDIT_LOG_OFF + 9] = 0x80;
+    // Zero displaced eGlu bytes 4-6 (Dressed, Captain, Player Style).
+    // MS zeroes bytes 5-6 for all players and byte 4 when Dressed=0x01.
+    // We zero all three unconditionally — the game tolerates this for byte4≠0x01
+    // cases (e.g. Kaprizov byte4=0x08) and it fixes McDavid/Matthews (byte4=0x01).
+    {
+        let eglu_recs_off = ctx.eglu_layout.records_offset();
+        let eglu_off = eglu_recs_off + eglu_rec * EGLU_REC_SIZE;
+        db[eglu_off + 4] = 0;
+        db[eglu_off + 5] = 0;
+        db[eglu_off + 6] = 0;
+    }
 
-    // eGlu tracker
-    let eglu_recs_off = ctx.eglu_layout.records_offset();
-    db[eglu_recs_off + EGLU_TRACKER_REC * EGLU_REC_SIZE] = cc;
+    // Write edit-log entry at stride N
+    let entry_off = EDIT_LOG_OFF + entry_idx * EDIT_LOG_ENTRY_STRIDE;
+    let cc = team.ms_cc;
+    db[entry_off + 0] = cc;
+    db[entry_off + 1] = 0;
+    db[entry_off + 2] = 0;
+    db[entry_off + 3] = 0;
+    db[entry_off + 4] = eglu_b4;   // displaced eGlu Dressed flag
+    db[entry_off + 5] = d1;
+    db[entry_off + 6] = d2;
+    db[entry_off + 7] = team.d3;
+    db[entry_off + 8] = team.d4;
+    db[entry_off + 9] = 0;
+
+    // eGlu tracker: first entry's full 16 bytes
+    if entry_idx == 0 {
+        let entry_bytes = db[entry_off..entry_off + EDIT_LOG_ENTRY_STRIDE].to_vec();
+        let eglu_recs_off = ctx.eglu_layout.records_offset();
+        let tracker_off = eglu_recs_off + EGLU_TRACKER_REC * EGLU_REC_SIZE;
+        db[tracker_off..tracker_off + EDIT_LOG_ENTRY_STRIDE].copy_from_slice(&entry_bytes);
+    }
 
     // CRC counter
     if db[CRC_COUNTER_OFF] == CRC_COUNTER_BASE || db[CRC_COUNTER_OFF] == 0 {
@@ -148,7 +191,7 @@ fn apply_single_move(db: &mut [u8], mv: &PlayerMove, ctx: &TdbContext) -> Result
     }
 
     eprintln!(
-        "  {name}: eGlu[{eglu_rec}] d1d2={d1:02x}{d2:02x} cc=0x{cc:02x} d3d4=0x{:02x}{:02x}",
+        "  [{entry_idx}] {name}: eGlu[{eglu_rec}] d1d2={d1:02x}{d2:02x} cc=0x{cc:02x} d3d4=0x{:02x}{:02x}",
         team.d3, team.d4
     );
 
