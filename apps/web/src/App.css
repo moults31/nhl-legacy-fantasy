@@ -1,0 +1,17 @@
+.App h1 {
+  margin-top: 0;
+}
+
+.App section {
+  margin-bottom: 2rem;
+}
+
+.App section h2 {
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.25rem;
+}
+
+.App .team-list button,
+.App .player-list button {
+  margin-left: 0.5rem;
+}
