@@ -413,12 +413,25 @@ fn adapt_blocks_for_edited(blocks: &[DeflateBlock], edited: &[u8]) -> Result<Vec
     let mut out = Vec::new();
     let mut pos = 0usize;
     let mut adapted = Vec::with_capacity(blocks.len());
+    let mut seen_changed = false;
 
     for block in blocks {
         let block_len: usize = block.ops.iter().map(DeflateOp::output_len).sum();
         let slice = &edited[pos..pos + block_len];
         let (ops, new_out) = adapt_ops_for_edited(&block.ops, slice, out)?;
-        let copy_from_template = ops.iter().zip(block.ops.iter()).all(|(a, b)| a.op_kind_eq(b));
+        let mut copy_from_template = ops.iter().zip(block.ops.iter()).all(|(a, b)| a.op_kind_eq(b));
+
+        // Once any block needs re-encoding, all subsequent blocks must also
+        // be re-encoded (not copy-from-template) to avoid bit-shift
+        // misalignment when the preceding block's re-encoded bit-length
+        // differs from the template.
+        if seen_changed {
+            copy_from_template = false;
+        }
+        if !copy_from_template {
+            seen_changed = true;
+        }
+
         out = new_out;
         pos += block_len;
         adapted.push(DeflateBlock {
@@ -614,6 +627,46 @@ fn encode_blocks(
 }
 
 /// Build `78 9c` + deflate + Adler from `data`, cloning Huffman trees and LZ ops from `template_zlib`.
+/// Inspect deflate block structure for debugging/mapping.
+pub fn inspect_deflate_blocks(template_zlib: &[u8]) -> Result<Vec<DeflateBlockMeta>> {
+    if template_zlib.len() < 2 {
+        return Err(Error::Decompress(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "zlib too short",
+        )));
+    }
+    let template_deflate = &template_zlib[2..template_zlib.len() - 4];
+    let blocks = decode_deflate_blocks(template_deflate)?;
+    let mut tdb_pos = 0usize;
+    let mut metas = Vec::new();
+    for blk in &blocks {
+        let uncompressed_size: usize = blk.ops.iter().map(|op| op.output_len()).sum();
+        let next_tdb = tdb_pos + uncompressed_size;
+        metas.push(DeflateBlockMeta {
+            bfinal: blk.bfinal,
+            btype: blk.btype,
+            start_bit: blk.start_bit,
+            end_bit: blk.end_bit,
+            uncompressed_size,
+            tdb_start: tdb_pos,
+            tdb_end: next_tdb,
+        });
+        tdb_pos = next_tdb;
+    }
+    Ok(metas)
+}
+
+#[derive(Debug, Clone)]
+pub struct DeflateBlockMeta {
+    pub bfinal: bool,
+    pub btype: u8,
+    pub start_bit: usize,
+    pub end_bit: usize,
+    pub uncompressed_size: usize,
+    pub tdb_start: usize,
+    pub tdb_end: usize,
+}
+
 pub fn compress_zlib_from_template(data: &[u8], template_zlib: &[u8]) -> Result<Vec<u8>> {
     if template_zlib.len() < 6 || template_zlib[0] != 0x78 || template_zlib[1] != 0x9c {
         return Err(Error::Decompress(std::io::Error::new(
@@ -635,9 +688,9 @@ pub fn compress_zlib_from_template(data: &[u8], template_zlib: &[u8]) -> Result<
     out.extend_from_slice(&deflate);
     out.extend_from_slice(&adler32_zlib(data).to_be_bytes());
     // Game roster inner blobs pad valid zlib to a fixed ~2.46 MB with zero trailer bytes.
-    if out.len() < template_zlib.len() {
-        out.resize(template_zlib.len(), 0);
-    }
+    // The game reads exactly template_zlib.len() bytes of zlib; any deviation breaks block alignment
+    // for games that decompress in multiple fixed-size chunks.
+    out.resize(template_zlib.len(), 0); // Always force exact template size (pad or truncate trailing zeros)
     Ok(out)
 }
 
@@ -661,6 +714,12 @@ mod tests {
     fn live_zlib() -> Option<Vec<u8>> {
         let path = std::path::Path::new(LIVE);
         if !path.is_file() {
+            // Fallback to TRADEEDIT5
+            let t5 = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../_local/game-saves/xbox/TRADEEDIT5"));
+            if t5.is_file() {
+                let container = std::fs::read(t5).ok()?;
+                return Some(container.get(48..)?.to_vec());
+            }
             return None;
         }
         let container = std::fs::read(path).ok()?;
@@ -926,5 +985,517 @@ mod tests {
         // flate2 must agree.
         let round = crate::unpack::decompress_zlib(&recompressed).expect("flate2 round-trip");
         assert_eq!(round, edited, "flate2 round-trip != edited db");
+    }
+
+    /// Compare flate2 vs fdeflate decompression of the live save. A mismatch would explain
+    /// why Rust-unpacked-then-repacked saves corrupt in-game while Modding Studio ones don't.
+    #[test]
+    fn flate2_vs_fdeflate_decompress_live() {
+        let container_path = std::path::Path::new(
+            r"C:\Users\galileo\Documents\nhllegacy\B13EBABEBABEBABE\454109EC.backup-20260705\00000001\ROSTER 20260307213511\ROSTER 20260307213511",
+        );
+        if !container_path.is_file() {
+            eprintln!("skip: no live save");
+            return;
+        }
+        let container = std::fs::read(container_path).expect("read");
+        let zlib = &container[48..];
+
+        // flate2 decompress
+        let flate2_db = crate::unpack::decompress_zlib(zlib).expect("flate2");
+        eprintln!("flate2 decompressed: {} bytes", flate2_db.len());
+
+        // fdeflate decompress
+        let mut dec = crate::deflate_fdeflate_ops::Decompressor::new();
+        let mut out = vec![0u8; 3_000_000];
+        let (_, produced) = dec.read(zlib, &mut out, 0, true).expect("fdeflate");
+        let fdeflate_db = &out[..produced];
+        eprintln!("fdeflate decompressed: {produced} bytes");
+
+        let mut diffs = 0usize;
+        let max_len = flate2_db.len().min(fdeflate_db.len());
+        let mut first = Vec::new();
+        for i in 0..max_len {
+            if flate2_db[i] != fdeflate_db[i] {
+                diffs += 1;
+                if first.len() < 30 {
+                    first.push((i, flate2_db[i], fdeflate_db[i]));
+                }
+            }
+        }
+        if flate2_db.len() != fdeflate_db.len() {
+            eprintln!("LENGTH MISMATCH: flate2={} fdeflate={}", flate2_db.len(), fdeflate_db.len());
+        }
+        eprintln!("diffs: {diffs}");
+        for (offset, fl2, fd) in &first {
+            eprintln!("  0x{offset:06X}: flate2=0x{fl2:02X} fdeflate=0x{fd:02X}");
+        }
+        assert_eq!(diffs, 0, "flate2 and fdeflate must decompress identically");
+    }
+
+    /// Map deflate block byte spans so we can identify which block contains a given DB offset.
+    #[test]
+    fn block_byte_spans() {
+        let Some(zlib) = live_zlib() else {
+            eprintln!("skip");
+            return;
+        };
+        let deflate = &zlib[2..zlib.len() - 4];
+        let blocks = decode_deflate_blocks(deflate).expect("decode blocks");
+        let mut pos = 0usize;
+        for (i, b) in blocks.iter().enumerate() {
+            let len: usize = b.ops.iter().map(DeflateOp::output_len).sum();
+            let end = pos + len;
+            let kind = match b.btype {
+                0 => "stored",
+                1 => "fixed ",
+                2 => "dynamic",
+                _ => "unknown",
+            };
+            eprintln!(
+                "block[{i:2}] {kind} ops={:5} bytes=[0x{pos:06X}..0x{end:06X}) len={len} start_bit={} end_bit={}",
+                b.ops.len(),
+                b.start_bit,
+                b.end_bit
+            );
+            pos = end;
+        }
+        eprintln!("total={pos} expected={}", 2456076usize);
+    }
+
+    /// Force a full re-encode of the flate2-decompressed DB by editing the first byte of
+    /// block 0 (offset 0x40, in the TDB header magic area). If the re-encoder produces a
+    /// stream that fails fdeflate round-trip, we've found the root cause.
+    #[test]
+    fn reencode_edited_flate2_db_fdeflate_roundtrip() {
+        let Some(zlib) = live_zlib() else {
+            eprintln!("skip");
+            return;
+        };
+        let mut db = crate::unpack::decompress_zlib(&zlib).expect("flate2 decompress");
+        // Edit a byte early in block 0 (well past "DB" magic at offset 0)
+        db[0x40] ^= 0x01;
+        eprintln!("edited db[0x40] 0x{:02X} -> 0x{:02X}", db[0x40] ^ 0x01, db[0x40]);
+        eprintln!("flate2: {} bytes", db.len());
+
+        let recompressed = compress_zlib_from_template(&db, &zlib).expect("recompress");
+        eprintln!(
+            "template={} recompressed={} delta={}",
+            zlib.len(), recompressed.len(),
+            recompressed.len() as i64 - zlib.len() as i64
+        );
+
+        // flate2 round-trip
+        let flate2_rt = crate::unpack::decompress_zlib(&recompressed).expect("flate2 rt");
+        assert_eq!(flate2_rt, db, "flate2 round-trip must match edited DB");
+
+        // fdeflate round-trip
+        let mut dec = crate::deflate_fdeflate_ops::Decompressor::new();
+        let mut out = vec![0u8; 3_000_000];
+        match dec.read(&recompressed, &mut out, 0, true) {
+            Ok((_, produced)) => {
+                let fdef = &out[..produced];
+                eprintln!("fdeflate rt: {produced} bytes");
+                let diffs: Vec<_> = db.iter().zip(fdef.iter()).enumerate()
+                    .filter(|(_, (a,b))| a!=b).take(10).collect();
+                if diffs.is_empty() && fdef.len() == db.len() {
+                    eprintln!("PASS: fdeflate round-trips edited flate2 DB");
+                } else {
+                    eprintln!("FAIL: {} diffs", db.iter().zip(fdef.iter()).filter(|(a,b)| a!=b).count());
+                    for (off, (a,b)) in &diffs {
+                        eprintln!("  0x{off:06X}: db=0x{a:02X} fdef=0x{b:02X}");
+                    }
+                    panic!("fdeflate round-trip failed");
+                }
+            }
+            Err(e) => {
+                eprintln!("fdeflate DECODE FAILED: {e:?}");
+                panic!("fdeflate cannot decode re-encoded stream");
+            }
+        }
+    }
+
+    /// Compare block-by-block adaptation between Rust-unpacked DB and MS DB.
+    #[test]
+    fn compare_adaptation_rust_vs_ms() {
+        let Some(t5_zlib) = live_zlib() else {
+            eprintln!("skip");
+            return;
+        };
+        let deflate = &t5_zlib[2..t5_zlib.len() - 4];
+        let template_blocks = decode_deflate_blocks(deflate).expect("decode template");
+
+        // Rust path: flate2-decompressed TRADEEDIT5 + 1-byte edit
+        let t5_db = crate::unpack::decompress_zlib(&t5_zlib).expect("flate2 t5");
+        let mut rust_db = t5_db.clone();
+        rust_db[0x0B949B] = 0x40;
+        let rust_adapted = adapt_blocks_for_edited(&template_blocks, &rust_db).expect("adapt rust");
+        
+        // MS path: Modding Studio-extracted DB
+        let ms_db_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../_local/game-saves/xbox/hedman_col.db"
+        ));
+        let ms_db = std::fs::read(ms_db_path).expect("read MS DB");
+        let ms_adapted = adapt_blocks_for_edited(&template_blocks, &ms_db).expect("adapt MS");
+
+        let mut interesting = 0usize;
+        for i in 0..template_blocks.len() {
+            let tb = &template_blocks[i];
+            let ra = &rust_adapted[i];
+            let ma = &ms_adapted[i];
+            let r_lits = ra.ops.iter().filter(|o| matches!(o, DeflateOp::Literal{..})).count();
+            let r_copys = ra.ops.iter().filter(|o| matches!(o, DeflateOp::Copy{..})).count();
+            let m_lits = ma.ops.iter().filter(|o| matches!(o, DeflateOp::Literal{..})).count();
+            let m_copys = ma.ops.iter().filter(|o| matches!(o, DeflateOp::Copy{..})).count();
+            
+            let rc = ra.copy_from_template;
+            let mc = ma.copy_from_template;
+            if r_lits != m_lits || r_copys != m_copys || rc != mc {
+                interesting += 1;
+                eprintln!(
+                    "block[{i:2}] rust: copy={rc} lits={r_lits:5} copys={r_copys:5} | ms: copy={mc} lits={m_lits:5} copys={m_copys:5} | tpl_ops={}",
+                    tb.ops.len()
+                );
+            }
+        }
+        eprintln!("blocks with adaptation differences: {interesting}");
+
+        // After fix: with force_reencode, blocks after 6 should re-encode.
+        // Simulate encode_blocks logic and show what happens.
+        let mut force = false;
+        for i in 0..template_blocks.len() {
+            let block = &rust_adapted[i];
+            let will_reencode;
+            if block.copy_from_template && !force {
+                will_reencode = "copy";
+            } else {
+                force = true;
+                will_reencode = "REENC";
+            }
+            eprintln!(
+                "block[{i:2}] {:>5} btype={} bfinal={} copy_flag={} start_bit={} end_bit={} tree_end={}",
+                will_reencode,
+                block.btype,
+                block.bfinal,
+                block.copy_from_template,
+                block.start_bit,
+                block.end_bit,
+                block.tree_end_bit
+            );
+        }
+
+        // Encode both and check round-trip
+        let rust_encoded = encode_blocks(deflate, &rust_adapted).expect("encode rust");
+        let ms_encoded = encode_blocks(deflate, &ms_adapted).expect("encode ms");
+
+        // Verify flate2 round-trip on both
+        let rust_full = {
+            let mut v = vec![0x78, 0x9c];
+            v.extend(&rust_encoded);
+            let a = adler32_zlib(&rust_db);
+            v.extend(&a.to_be_bytes());
+            v
+        };
+        let rust_rt = crate::unpack::decompress_zlib(&rust_full).expect("rust rt");
+        assert_eq!(rust_rt, rust_db, "rust round-trip FAILED");
+
+        let ms_full = {
+            let mut v = vec![0x78, 0x9c];
+            v.extend(&ms_encoded);
+            let a = adler32_zlib(&ms_db);
+            v.extend(&a.to_be_bytes());
+            v
+        };
+        let ms_rt = crate::unpack::decompress_zlib(&ms_full).expect("ms rt");
+        assert_eq!(ms_rt, ms_db, "ms round-trip FAILED");
+
+        eprintln!(
+            "rust encoded={} ms encoded={}",
+            rust_encoded.len(), ms_encoded.len()
+        );
+    }
+
+    /// Direct test: MS DB + 2 proteam edits (block 6 only) — fdeflate round-trip.
+    #[test]
+    fn two_edits_in_block6_fdeflate_roundtrip() {
+        let Some(t5_zlib) = live_zlib() else { eprintln!("skip"); return; };
+        let ms_db_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../_local/game-saves/xbox/hedman_col.db"
+        ));
+        let mut ms_db = std::fs::read(ms_db_path).expect("read MS DB");
+
+        // 2 edits in block 6
+        ms_db[0x0B949B] = 0x40; // Crosby -> COL
+        ms_db[0x0B9837] = 0x40; // Ovechkin -> COL
+
+        let recompressed = compress_zlib_from_template(&ms_db, &t5_zlib).expect("compress");
+        eprintln!("template={} recompressed={}", t5_zlib.len(), recompressed.len());
+
+        // flate2 round-trip
+        let flate2_rt = crate::unpack::decompress_zlib(&recompressed).expect("flate2 rt");
+        assert_eq!(flate2_rt, ms_db, "flate2 round-trip FAILED");
+        
+        // fdeflate round-trip
+        let mut dec = crate::deflate_fdeflate_ops::Decompressor::new();
+        let mut out = vec![0u8; 3_000_000];
+        match dec.read(&recompressed, &mut out, 0, true) {
+            Ok((_, produced)) => {
+                let fdef = &out[..produced];
+                eprintln!("fdeflate produced={produced} expected={}", ms_db.len());
+                if fdef == ms_db.as_slice() {
+                    eprintln!("PASS: fdeflate round-trip OK for 2 edits");
+                } else {
+                    let diffs: Vec<_> = ms_db.iter().zip(fdef.iter()).enumerate()
+                        .filter(|(_, (a,b))| a!=b).take(20).collect();
+                    eprintln!("FAIL: {} total diffs", ms_db.iter().zip(fdef.iter()).filter(|(a,b)| a!=b).count());
+                    for (off, (a,b)) in &diffs {
+                        eprintln!("  0x{off:06X}: db=0x{a:02X} fdef=0x{b:02X}");
+                    }
+                    panic!("fdeflate round-trip FAILED");
+                }
+            }
+            Err(e) => {
+                eprintln!("fdeflate DECODE FAILED: {e:?}");
+                panic!("fdeflate error on 2 edits");
+            }
+        }
+    }
+
+    /// Re-encode the re-encoded output: can the re-encoder process its own output?
+    #[test]
+    fn gen2_gen3_fdeflate_roundtrip() {
+        let Some(t5_zlib) = live_zlib() else { eprintln!("skip"); return; };
+        let ms_db_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../_local/game-saves/xbox/hedman_col.db"
+        ));
+        let mut ms_db = std::fs::read(ms_db_path).expect("read MS");
+        ms_db[0x0B949B] = 0x40; // Crosby
+
+        // gen1: MS-DB + Crosby -> repack with TRADEEDIT5 (simulates TESTL)
+        let gen1 = compress_zlib_from_template(&ms_db, &t5_zlib).expect("gen1");
+        let gen1_rt = crate::unpack::decompress_zlib(&gen1).expect("gen1 rt");
+        assert_eq!(gen1_rt, ms_db, "gen1 rt");
+
+        // gen2: gen1-DB + Ovechkin -> repack with gen1 as template (simulates SURGICAL/MSTL)
+        let mut gen1_db = gen1_rt;
+        gen1_db[0x0B9837] = 0x40;
+        let gen2 = compress_zlib_from_template(&gen1_db, &gen1).expect("gen2");
+        let gen2_rt = crate::unpack::decompress_zlib(&gen2).expect("gen2 rt");
+        assert_eq!(gen2_rt, gen1_db, "gen2 rt");
+
+        // fdeflate round-trip gen2
+        let mut dec = crate::deflate_fdeflate_ops::Decompressor::new();
+        let mut out = vec![0u8; 3_000_000];
+        match dec.read(&gen2, &mut out, 0, true) {
+            Ok((_, produced)) => {
+                let fdef = &out[..produced];
+                let total = gen1_db.iter().zip(fdef.iter()).filter(|(a,b)| a!=b).count();
+                if total > 0 {
+                    eprintln!("FAIL: gen2 fdeflate rt: {total} diffs");
+                    let diffs: Vec<_> = gen1_db.iter().zip(fdef.iter()).enumerate()
+                        .filter(|(_,(a,b))| a!=b).take(15).collect();
+                    for (off,(a,b)) in &diffs {
+                        eprintln!("  0x{off:06X}: gen1=0x{a:02X} fdef=0x{b:02X}");
+                    }
+                    panic!("gen2 fdeflate broken");
+                } else {
+                    eprintln!("PASS: gen2 fdeflate round-trip OK");
+                }
+            }
+            Err(e) => { eprintln!("gen2 fdeflate DECODE FAILED: {e:?}"); panic!("gen2 fdeflate"); }
+        }
+
+        // gen3: gen2-DB + Hedman -> repack with gen2 as template
+        let mut gen2_db = gen2_rt;
+        gen2_db[0x0CAD1B] = 0x40;
+        let gen3 = compress_zlib_from_template(&gen2_db, &gen2).expect("gen3");
+        let gen3_rt = crate::unpack::decompress_zlib(&gen3).expect("gen3 rt");
+        assert_eq!(gen3_rt, gen2_db, "gen3 rt");
+
+        dec = crate::deflate_fdeflate_ops::Decompressor::new();
+        out = vec![0u8; 3_000_000];
+        match dec.read(&gen3, &mut out, 0, true) {
+            Ok((_, produced)) => {
+                let fdef = &out[..produced];
+                let total = gen2_db.iter().zip(fdef.iter()).filter(|(a,b)| a!=b).count();
+                if total > 0 {
+                    eprintln!("FAIL: gen3 fdeflate rt: {total} diffs");
+                    panic!("gen3 fdeflate broken");
+                } else {
+                    eprintln!("PASS: gen3 fdeflate round-trip OK");
+                }
+            }
+            Err(e) => { eprintln!("gen3 fdeflate DECODE FAILED: {e:?}"); panic!("gen3 fdeflate"); }
+        }
+    }
+
+    /// Show which deflate blocks are re-encoded (copy_from_template=false) for each test DB.
+    #[test]
+    fn block_reencode_diagnostic() {
+        let Some(t5_zlib) = live_zlib() else { eprintln!("skip"); return; };
+        let ms_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/../../_local/game-saves/xbox/hedman_col.db"
+        ));
+        let ms_db = std::fs::read(ms_path).expect("ms");
+        let template_deflate = &t5_zlib[2..t5_zlib.len() - 4];
+
+        let edits: Vec<(&str, Vec<usize>)> = vec![
+            ("T0_CLEAN", vec![]),
+            ("T1_CRSB", vec![0x0B949B]),
+            ("T1_OV", vec![0x0B9837]),
+            ("T2_CRSBOV", vec![0x0B949B, 0x0B9837]),
+            ("T3_ALL", vec![0x0B949B, 0x0B9837, 0x0CAD1B]),
+        ];
+
+        let base_blocks = decode_deflate_blocks(template_deflate).expect("decode");
+
+        // Map DB byte offsets to deflate blocks
+        let mut byte_to_block = vec![0usize; ms_db.len() + 1];
+        {
+            let mut tdb_pos = 0usize;
+            for (bi, blk) in base_blocks.iter().enumerate() {
+                let len: usize = blk.ops.iter().map(|op| op.output_len()).sum();
+                for j in 0..len {
+                    if tdb_pos + j < byte_to_block.len() {
+                        byte_to_block[tdb_pos + j] = bi;
+                    }
+                }
+                tdb_pos += len;
+            }
+        }
+
+        for (name, edit_offsets) in &edits {
+            let mut db = ms_db.clone();
+            for &off in edit_offsets {
+                db[off] = 0x40;
+            }
+            let adapted = adapt_blocks_for_edited(&base_blocks, &db).expect("adapt");
+            let reencoded: Vec<usize> = adapted.iter().enumerate()
+                .filter(|(_, b)| !b.copy_from_template)
+                .map(|(i, _)| i)
+                .collect();
+            let first_byte_per_block: Vec<usize> = adapted.iter().scan(0usize, |pos, b| {
+                let cur = *pos;
+                let len: usize = b.ops.iter().map(|op| op.output_len()).sum();
+                *pos += len;
+                Some(cur)
+            }).collect();
+
+            eprintln!("{name}: re-encoded blocks: {reencoded:?}");
+            for &bi in &reencoded {
+                let start = first_byte_per_block[bi];
+                let end = start + adapted[bi].ops.iter().map(|op| op.output_len()).sum::<usize>();
+                eprintln!("  block[{bi}] covers DB bytes [0x{start:06X}..0x{end:06X})");
+            }
+
+            // Also: is the compressed zlib longer than template?
+            let compressed = compress_zlib_from_template(&db, &t5_zlib).expect("compress");
+            eprintln!("  zlib length: {} bytes (template: {})", compressed.len(), t5_zlib.len());
+            if compressed.len() > t5_zlib.len() {
+                eprintln!("  *** ZLIB LONGER THAN TEMPLATE — WILL BE TRUNCATED! ***");
+            }
+        }
+
+        // Compare T0_CLEAN.zlib vs T1_CRSB.zlib byte by byte (both from disk)
+        for (a_label, b_label) in &[("T0_CLEAN", "T1_CRSB"), ("T0_CLEAN", "T1_OV")] {
+            let path_a = format!("{}/../../_local/game-saves/xbox/{}.bin",
+                env!("CARGO_MANIFEST_DIR"), a_label);
+            let path_b = format!("{}/../../_local/game-saves/xbox/{}.bin",
+                env!("CARGO_MANIFEST_DIR"), b_label);
+            if let (Ok(a), Ok(b)) = (std::fs::read(&path_a), std::fs::read(&path_b)) {
+                let z_a = &a[48..];
+                let z_b = &b[48..];
+                let m = z_a.len().min(z_b.len());
+                let total: usize = (0..m).filter(|&i| z_a[i] != z_b[i]).count();
+                eprintln!("\n{a_label} vs {b_label}: {total} zlib diffs / {m} bytes");
+                let mut shown = 0usize;
+                for i in 0..m {
+                    if z_a[i] != z_b[i] && shown < 5 {
+                        let va = z_a[i];
+                        let vb = z_b[i];
+                        eprintln!("  zlib[{i:>8}]: {a_label}=0x{va:02X} {b_label}=0x{vb:02X}");
+                        shown += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    /// MSTL scenario: build OV edit with TRADEEDIT5 template (OV_T5) vs with gen1/TESTL
+    /// template (MS_TL). Compare both zlibs and full containers.
+    #[test]
+    fn gen1_vs_t5_template_full_comparison() {
+        let Some(t5_zlib) = live_zlib() else { eprintln!("skip"); return; };
+        
+        let ms_db_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../_local/game-saves/xbox/hedman_col.db"
+        ));
+        let mut ms_db = std::fs::read(ms_db_path).expect("read MS");
+
+        // gen1 = MS-DB + Crosby -> TRADEEDIT5 template (TESTL)
+        ms_db[0x0B949B] = 0x40;
+        let gen1_zlib = compress_zlib_from_template(&ms_db, &t5_zlib).expect("gen1");
+
+        // Compare with testL.bin on disk
+        let testl_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/../../_local/game-saves/xbox/testL.bin"
+        ));
+        if let Ok(tl_bin) = std::fs::read(testl_path) {
+            let tl_zlib = &tl_bin[48..];
+            let cmp_len = tl_zlib.len().min(gen1_zlib.len());
+            let d: usize = (0..cmp_len).filter(|&i| tl_zlib[i] != gen1_zlib[i]).count();
+            eprintln!("testL.bin zlib vs gen1 zlib (MS-DB+Crosby): {d} / {cmp_len} diffs ({} identical)",
+                if d == 0 { "MATCH" } else if d < 1000 { "NEAR MATCH" } else { "DIVERGE" });
+            if d > 0 && d < 100 {
+                for i in 0..cmp_len {
+                    if tl_zlib[i] != gen1_zlib[i] {
+                        eprintln!("  diff at zlib byte {i}: disk=0x{:02X} gen1=0x{:02X}", tl_zlib[i], gen1_zlib[i]);
+                    }
+                }
+            }
+        }
+
+        // Now reset and do Ovechkin edit
+        let ms_db = std::fs::read(ms_db_path).expect("read MS");
+        let mut ov_db = ms_db.clone();
+        ov_db[0x0B9837] = 0x40;
+
+        // B1: Pack OV with TRADEEDIT5 template
+        let ov_t5_zlib = compress_zlib_from_template(&ov_db, &t5_zlib).expect("ov_t5");
+        
+        // B2: Pack OV with gen1/TESTL zlib as template
+        let ov_gen1_zlib = compress_zlib_from_template(&ov_db, &gen1_zlib).expect("ov_gen1");
+
+        // Compare B1 vs B2 zlib
+        let min_zlib = ov_t5_zlib.len().min(ov_gen1_zlib.len());
+        let zlib_diffs: usize = (0..min_zlib).filter(|&i| ov_t5_zlib[i] != ov_gen1_zlib[i]).count();
+        eprintln!("\nZLIB diff OV+T5 vs OV+gen1: {zlib_diffs} / {min_zlib}");
+
+        // Verify round-trips
+        let b1_rt = crate::unpack::decompress_zlib(&ov_t5_zlib).expect("b1");
+        let b2_rt = crate::unpack::decompress_zlib(&ov_gen1_zlib).expect("b2");
+        assert_eq!(b1_rt, ov_db, "B1 rt");
+        assert_eq!(b2_rt, ov_db, "B2 rt");
+
+        // Compare with actual MS_TL.bin on disk
+        let ms_tl_path = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/../../_local/game-saves/xbox/MS_TL.bin"
+        ));
+        if let Ok(ms_tl_bin) = std::fs::read(ms_tl_path) {
+            eprintln!("\nComparing with MS_TL.bin on disk:");
+            let disk_zlib = &ms_tl_bin[48..];
+            
+            // Compare with B1
+            let d1: usize = (0..min_zlib).filter(|&i| disk_zlib.get(i) != ov_t5_zlib.get(i)).count();
+            eprintln!("  MS_TL.bin vs B1(OV+T5): {d1} diffs");
+            
+            // Compare with B2
+            let d2: usize = (0..min_zlib).filter(|&i| disk_zlib.get(i) != ov_gen1_zlib.get(i)).count();
+            eprintln!("  MS_TL.bin vs B2(OV+gen1): {d2} diffs");
+        }
     }
 }

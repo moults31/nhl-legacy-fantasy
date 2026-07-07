@@ -1,6 +1,6 @@
 //! Validates EA DB Editor CRC layout and reseal self-consistency on full TDB payloads.
 
-use ea_tdb::{reseal_checksums, verify_checksums, Crc32Be, TdbFile};
+use ea_tdb::{reseal_checksums, verify_checksums, TdbFile};
 use std::fs;
 
 fn try_unpacked_roster_db() -> Option<Vec<u8>> {
@@ -43,16 +43,17 @@ fn header_and_table_crc_formulas_on_resealed_db() {
     };
     reseal_checksums(&mut db).expect("reseal");
 
-    let crc = Crc32Be::new();
     let file = TdbFile::parse(&db).expect("parse");
-    assert_eq!(file.header_crc, !crc.crc32_be(0, &db, 20, 0));
+    // Stored header CRC is !crc32_be_standard over first 20 bytes
+    assert_eq!(file.header_crc, !ea_tdb::crc32_be_standard(&db[..20]));
 
     let ajmx = file.directory.get("ajmx").expect("ajmx");
     let info_off = file.directory.table_data_start + ajmx.data_offset as usize;
     let stored_header_crc =
         u32::from_be_bytes(db[info_off + 36..info_off + 40].try_into().unwrap());
+    // Stored table header CRC is !crc32_be_standard over 32 bytes at info+4
     assert_eq!(
         stored_header_crc,
-        !crc.crc32_be(0, &db, 32, info_off as u32 + 4)
+        !ea_tdb::crc32_be_standard(&db[info_off + 4..info_off + 36])
     );
 }

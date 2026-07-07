@@ -222,3 +222,63 @@ fn mctavish_save_reorders_records() {
         "McTavish bio offset should move when the DB is re-saved"
     );
 }
+
+#[test]
+fn dump_wbbd_byte_layout() {
+    let t5 = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../_local/game-saves/xbox/TRADEEDIT5"
+    ));
+    if !t5.exists() {
+        eprintln!("TRADEEDIT5 not found, skip");
+        return;
+    }
+    let container = std::fs::read(t5).expect("read TRADEEDIT5");
+    let db = ::roster_container::unpack(&container).expect("unpack");
+
+    let file = ea_tdb::TdbFile::parse(&db).expect("parse");
+    let entry = file.directory.get("cPbu").expect("cPbu");
+    let layout = file.table_layout(&db, entry).expect("layout");
+    let proteam = layout.find_field("WBbd").expect("WBbd");
+
+    eprintln!(
+        "WBbd: record_bit_offset={} bit_width={}",
+        proteam.record_bit_offset, proteam.bit_width
+    );
+
+    let rlb = layout.info.record_length_bytes as usize;
+    let base = layout.records_offset();
+
+    for (name, rec) in &[("Crosby", 688usize), ("Ovechkin", 695), ("Hedman", 1232)] {
+        let val = layout
+            .read_field(&db, *rec, proteam, file.header.endian)
+            .expect("read field");
+        let bit_off = proteam.record_bit_offset as usize;
+        let byte_start = bit_off / 8;
+        let byte_end = (bit_off + proteam.bit_width as usize + 7) / 8;
+        let rec_start = base + rec * rlb;
+        let abs_off = rec_start + byte_start;
+        let bytes: Vec<_> = (rec_start + byte_start..rec_start + byte_end)
+            .map(|i| format!("{:02X}", db[i]))
+            .collect();
+
+        // Also show the NEXT field to understand byte sharing
+        let next_field = layout.fields.iter()
+            .filter(|f| f.record_bit_offset > proteam.record_bit_offset)
+            .min_by_key(|f| f.record_bit_offset);
+        
+        let next_info = if let Some(nf) = next_field {
+            let n_byte_start = nf.record_bit_offset as usize / 8;
+            let shares_byte = n_byte_start == byte_start;
+            format!("next_field={} bit_off={} shares_byte={}", nf.field_id.as_str(), nf.record_bit_offset, shares_byte)
+        } else {
+            "no next field".to_string()
+        };
+
+        eprintln!(
+            "{name:>10} rec={rec:4} proteam={val:3} DB_offset=0x{abs_off:06X} span={} bytes=[{}] | {next_info}",
+            byte_end - byte_start,
+            bytes.join(" ")
+        );
+    }
+}
