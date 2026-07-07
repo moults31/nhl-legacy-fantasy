@@ -18,7 +18,7 @@
     "test": "node --test dist/**/*.test.js"
   },
   "dependencies": {
-    "@moults31/nhl-legacy-roster-spec": "file:../../_local/nhl-legacy-roster-spec",
+    "@moults31/nhl-legacy-roster-spec": "git+https://github.com/moults31/nhl-legacy-roster-spec.git#main",
     "zod": "^3.24.1"
   },
   "devDependencies": {

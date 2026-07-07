@@ -4,6 +4,9 @@
 # Game save fixtures (see tests/fixtures/README.md)
 /tests/fixtures/*
 !/tests/fixtures/README.md
+!/tests/fixtures/xbox/
+!/tests/fixtures/xbox/roster.bin
+!/tests/fixtures/xbox/tdb_header.bin
 __pycache__/
 
 # Dependencies
@@ -43,3 +46,6 @@ apps/api/tmp/
 
 # Rust build output (legacy workspace)
 /target/
+
+# Cargo-installed mule binary
+/.cargo-bin/

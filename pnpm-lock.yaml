@@ -80,8 +80,8 @@ importers:
   packages/spec-client:
     dependencies:
       '@moults31/nhl-legacy-roster-spec':
-        specifier: file:../../_local/nhl-legacy-roster-spec
-        version: file:_local/nhl-legacy-roster-spec
+        specifier: git+https://github.com/moults31/nhl-legacy-roster-spec.git#main
+        version: git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -970,8 +970,9 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@moults31/nhl-legacy-roster-spec@file:_local/nhl-legacy-roster-spec':
-    resolution: {directory: _local/nhl-legacy-roster-spec, type: directory}
+  '@moults31/nhl-legacy-roster-spec@git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662':
+    resolution: {commit: 9b3d62ffdc19cc72bc199e50a86b6f23d53bf662, repo: git@github.com:moults31/nhl-legacy-roster-spec.git, type: git}
+    version: 1.0.0
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -1439,8 +1440,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.388:
-    resolution: {integrity: sha512-Pl/aJaqOOxYxda3vcx1IKSJimwYXHDkEnGn0F+kG2EE68dDtx2uCinaS+Vih8Z91B9t8CSAbiF/HKyWcnXjhzw==}
+  electron-to-chromium@1.5.389:
+    resolution: {integrity: sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg==}
 
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
@@ -3358,7 +3359,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@moults31/nhl-legacy-roster-spec@file:_local/nhl-legacy-roster-spec': {}
+  '@moults31/nhl-legacy-roster-spec@git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662': {}
 
   '@pinojs/redact@0.4.0': {}
 
@@ -3669,7 +3670,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.10.42
       caniuse-lite: 1.0.30001803
-      electron-to-chromium: 1.5.388
+      electron-to-chromium: 1.5.389
       node-releases: 2.0.50
       update-browserslist-db: 1.2.3(browserslist@4.28.5)
 
@@ -3779,7 +3780,7 @@ snapshots:
     dependencies:
       jake: 10.9.4
 
-  electron-to-chromium@1.5.388: {}
+  electron-to-chromium@1.5.389: {}
 
   end-of-stream@1.4.5:
     dependencies:
