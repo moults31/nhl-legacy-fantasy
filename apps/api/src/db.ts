@@ -62,16 +62,21 @@ export function getTeams(database: Database.Database = getDb()): TeamRow[] {
   return database.prepare<[], TeamRow>("SELECT * FROM teams ORDER BY city").all();
 }
 
+/** ZZ-/ZZZ-/ZZZZ-only last names are placeholder records in the vanilla roster.
+ * The game filters them out of the in-game UI; mirror that here. */
+const ZZ_FILTER =
+  "last_name NOT IN ('ZZ', 'ZZZ', 'ZZZZ')";
+
 export function getPlayers(database: Database.Database = getDb()): PlayerRow[] {
   return database
-    .prepare<[], PlayerRow>("SELECT * FROM players ORDER BY last_name, first_name")
+    .prepare<[], PlayerRow>(`SELECT * FROM players WHERE ${ZZ_FILTER} ORDER BY last_name, first_name`)
     .all();
 }
 
 export function getPlayersByTeam(slug: string, database: Database.Database = getDb()): PlayerRow[] {
   return database
     .prepare<[string], PlayerRow>(
-      "SELECT * FROM players WHERE main_team_slug = ? ORDER BY last_name, first_name"
+      `SELECT * FROM players WHERE main_team_slug = ? AND ${ZZ_FILTER} ORDER BY last_name, first_name`
     )
     .all(slug);
 }

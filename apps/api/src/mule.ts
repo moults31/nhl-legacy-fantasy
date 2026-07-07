@@ -76,11 +76,17 @@ export async function packRoster(sr: SrV1Roster): Promise<Buffer> {
       );
     }
 
-    // 3. Pack the edited DB -> .bin
-    const packResult = await execMule(["pack-fdeflate", editedDbPath, "-o", outputBinPath]);
+    // 3. Pack the edited DB -> .bin (vanilla roster provides header template)
+    const packResult = await execMule([
+      "pack",
+      editedDbPath,
+      config.vanillaRosterBin,
+      "-o",
+      outputBinPath,
+    ]);
     if (packResult.exitCode !== 0) {
       throw new Error(
-        `mule pack-fdeflate failed (${packResult.exitCode}): ${packResult.stderr || packResult.stdout}`
+        `mule pack failed (${packResult.exitCode}): ${packResult.stderr || packResult.stdout}`
       );
     }
 

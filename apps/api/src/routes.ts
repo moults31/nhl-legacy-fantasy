@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   buildSrV1Roster,
+  SrV1Roster,
   WrPlayer,
   WrTeam,
 } from "@nlf/spec-client";
@@ -15,6 +16,8 @@ import {
 } from "./db.js";
 import { packRoster } from "./mule.js";
 
+import { installRoster } from "./install.js";
+
 interface AssignPlayerParams {
   playerId: string;
   teamSlug: string;
@@ -22,6 +25,67 @@ interface AssignPlayerParams {
 
 interface AssignPlayerBody {
   action: "assign" | "remove";
+}
+
+/** Build an SR v1 roster document from the current WR database state. */
+function buildSr(teamSlug: string): SrV1Roster {
+  const teams = getTeams();
+  const players = getPlayers();
+  const playerMappings = getPlayerMappings();
+  const teamMappings = getTeamMappings();
+
+  const team = teams.find((t) => t.slug === teamSlug);
+  if (!team) {
+    throw Object.assign(new Error("Team not found"), { statusCode: 404 });
+  }
+
+  const wrTeams: WrTeam[] = teams.map((t) => ({
+    slug: t.slug,
+    city: t.city,
+    fullName: t.full_name,
+    abbrev: t.abbrev,
+  }));
+
+  const wrPlayers: WrPlayer[] = players.map((p) => ({
+    id: p.id,
+    firstName: p.first_name,
+    lastName: p.last_name,
+    mainTeamSlug: p.main_team_slug,
+  }));
+
+  const sr = buildSrV1Roster({
+    teams: wrTeams,
+    players: wrPlayers,
+    mappings: {
+      players: new Map(
+        Array.from(playerMappings.entries()).map(([id, m]) => [
+          id,
+          { wrPlayerId: id, srRecord: m.sr_record },
+        ])
+      ),
+      teams: new Map(
+        Array.from(teamMappings.entries()).map(([slug, m]) => [
+          slug,
+          { wrTeamSlug: slug, srRecord: m.sr_record, srProteam: m.sr_proteam },
+        ])
+      ),
+    },
+  });
+
+  // Ensure the requested team appears in the SR document.
+  if (!sr.teams.find((t) => t.record === teamMappings.get(teamSlug)?.sr_record)) {
+    const mapping = teamMappings.get(teamSlug);
+    if (mapping) {
+      sr.teams.push({
+        record: mapping.sr_record,
+        city: team.city,
+        full_name: team.full_name,
+        abbrev: team.abbrev,
+      });
+    }
+  }
+
+  return sr;
 }
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
@@ -55,71 +119,40 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post(
     "/teams/:slug/export",
     async (request: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {
-      const teamSlug = request.params.slug;
-
-      const teams = getTeams();
-      const players = getPlayers();
-      const playerMappings = getPlayerMappings();
-      const teamMappings = getTeamMappings();
-
-      const team = teams.find((t) => t.slug === teamSlug);
-      if (!team) {
-        return reply.status(404).send({ error: "Team not found" });
-      }
-
-      const wrTeams: WrTeam[] = teams.map((t) => ({
-        slug: t.slug,
-        city: t.city,
-        fullName: t.full_name,
-        abbrev: t.abbrev,
-      }));
-
-      const wrPlayers: WrPlayer[] = players.map((p) => ({
-        id: p.id,
-        firstName: p.first_name,
-        lastName: p.last_name,
-        mainTeamSlug: p.main_team_slug,
-      }));
-
-      const sr = buildSrV1Roster({
-        teams: wrTeams,
-        players: wrPlayers,
-        mappings: {
-          players: new Map(
-            Array.from(playerMappings.entries()).map(([id, m]) => [
-              id,
-              { wrPlayerId: id, srRecord: m.sr_record },
-            ])
-          ),
-          teams: new Map(
-            Array.from(teamMappings.entries()).map(([slug, m]) => [
-              slug,
-              { wrTeamSlug: slug, srRecord: m.sr_record, srProteam: m.sr_proteam },
-            ])
-          ),
-        },
-      });
-
-      // Ensure the requested team appears in the SR document so the export is
-      // meaningful even if no players are assigned yet.
-      if (!sr.teams.find((t) => t.record === teamMappings.get(teamSlug)?.sr_record)) {
-        const mapping = teamMappings.get(teamSlug);
-        if (mapping) {
-          sr.teams.push({
-            record: mapping.sr_record,
-            city: team.city,
-            full_name: team.full_name,
-            abbrev: team.abbrev,
-          });
+      try {
+        const sr = buildSr(request.params.slug);
+        const bin = await packRoster(sr);
+        return reply
+          .header("Content-Type", "application/octet-stream")
+          .header("Content-Disposition", `attachment; filename="${request.params.slug}-roster.bin"`)
+          .send(bin);
+      } catch (err: any) {
+        if (err?.statusCode === 404) {
+          return reply.status(404).send({ error: err.message });
         }
+        throw err;
       }
+    }
+  );
 
-      const bin = await packRoster(sr);
-
-      return reply
-        .header("Content-Type", "application/octet-stream")
-        .header("Content-Disposition", `attachment; filename="${teamSlug}-roster.bin"`)
-        .send(bin);
+  app.post(
+    "/teams/:slug/install",
+    async (request: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {
+      try {
+        const sr = buildSr(request.params.slug);
+        const bin = await packRoster(sr);
+        const result = await installRoster(bin);
+        return reply.send({
+          installed: true,
+          saveName: result.saveName,
+          gameReady: true,
+        });
+      } catch (err: any) {
+        if (err?.statusCode === 404) {
+          return reply.status(404).send({ error: err.message });
+        }
+        throw err;
+      }
     }
   );
 }
