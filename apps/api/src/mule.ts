@@ -32,7 +32,11 @@ function execMule(args: string[]): Promise<ExecResult> {
 /**
  * Apply an SR v1 roster patch to a vanilla roster and pack a game-ready .bin.
  *
- * This is the core producer step: WR -> SR -> mule CLI -> .bin.
+ * Uses the `patch-roster` command which applies schema-based proteam patches
+ * AND the full move-player pipeline (team_alt, eGlu zeroing, edit-log entries,
+ * reseal_ms_crcs).  This is the single correct path — the old import+pack
+ * pipeline missed team_alt, edit-log, eGlu zeroing, and checksum reseals,
+ * causing in-game corruption.
  */
 export async function packRoster(sr: SrV1Roster): Promise<Buffer> {
   if (!config.vanillaRosterBin) {
@@ -43,56 +47,28 @@ export async function packRoster(sr: SrV1Roster): Promise<Buffer> {
   const workDir = await mkdtemp(join(tmpdir(), "nlf-roster-"));
 
   try {
-    const vanillaDbPath = join(workDir, "default.db");
-    const editedDbPath = join(workDir, "edited.db");
     const srPath = join(workDir, "roster.json");
     const outputBinPath = join(config.rosterOutputDir, `roster-${Date.now()}.bin`);
 
-    // 1. Unpack the vanilla roster .bin -> default.db
-    const unpackResult = await execMule([
-      "unpack",
-      config.vanillaRosterBin,
-      "-o",
-      vanillaDbPath,
-    ]);
-    if (unpackResult.exitCode !== 0) {
-      throw new Error(
-        `mule unpack failed (${unpackResult.exitCode}): ${unpackResult.stderr || unpackResult.stdout}`
-      );
-    }
-
-    // 2. Write the SR patch and apply it -> edited.db
+    // 1. Write the SR patch file.
     await writeFile(srPath, JSON.stringify(sr, null, 2), "utf8");
-    const importResult = await execMule([
-      "import",
-      "-o",
-      editedDbPath,
-      vanillaDbPath,
-      srPath,
-    ]);
-    if (importResult.exitCode !== 0) {
-      throw new Error(
-        `mule import failed (${importResult.exitCode}): ${importResult.stderr || importResult.stdout}`
-      );
-    }
 
-    // 3. Pack the edited DB -> .bin (vanilla roster provides header template)
-    const packResult = await execMule([
-      "pack",
-      editedDbPath,
+    // 2. Apply patches with full move logic and pack in one step.
+    const result = await execMule([
+      "patch-roster",
       config.vanillaRosterBin,
+      srPath,
       "-o",
       outputBinPath,
     ]);
-    if (packResult.exitCode !== 0) {
+    if (result.exitCode !== 0) {
       throw new Error(
-        `mule pack failed (${packResult.exitCode}): ${packResult.stderr || packResult.stdout}`
+        `mule patch-roster failed (${result.exitCode}): ${result.stderr || result.stdout}`
       );
     }
 
     return await readFile(outputBinPath);
   } finally {
-    // Intentionally leaving workDir for debugging; production should clean it.
     // eslint-disable-next-line no-console
     console.debug("mule work dir:", workDir);
   }
