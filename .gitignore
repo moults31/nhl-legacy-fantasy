@@ -40,3 +40,6 @@ apps/api/tmp/
 
 # Turbo
 .turbo/
+
+# Rust build output (legacy workspace)
+/target/

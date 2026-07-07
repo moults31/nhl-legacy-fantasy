@@ -80,8 +80,8 @@ importers:
   packages/spec-client:
     dependencies:
       '@moults31/nhl-legacy-roster-spec':
-        specifier: github:moults31/nhl-legacy-roster-spec#v1.0.0
-        version: git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662
+        specifier: file:../../_local/nhl-legacy-roster-spec
+        version: file:_local/nhl-legacy-roster-spec
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -970,9 +970,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@moults31/nhl-legacy-roster-spec@git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662':
-    resolution: {commit: 9b3d62ffdc19cc72bc199e50a86b6f23d53bf662, repo: git@github.com:moults31/nhl-legacy-roster-spec.git, type: git}
-    version: 1.0.0
+  '@moults31/nhl-legacy-roster-spec@file:_local/nhl-legacy-roster-spec':
+    resolution: {directory: _local/nhl-legacy-roster-spec, type: directory}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -3359,7 +3358,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@moults31/nhl-legacy-roster-spec@git+https://git@github.com:moults31/nhl-legacy-roster-spec.git#9b3d62ffdc19cc72bc199e50a86b6f23d53bf662': {}
+  '@moults31/nhl-legacy-roster-spec@file:_local/nhl-legacy-roster-spec': {}
 
   '@pinojs/redact@0.4.0': {}
 

@@ -35,6 +35,7 @@ export interface PlayerMapping {
 export interface TeamMapping {
   wrTeamSlug: string;
   srRecord: number;
+  /** Logical team ID (WBbd/proteam value), NOT the ttOk record index. See {@link NHL_LOGICAL_TEAM_IDS}. */
   srProteam: number;
 }
 
@@ -48,6 +49,58 @@ export interface BuildRosterOptions {
   players: WrPlayer[];
   mappings: Mappings;
 }
+
+/**
+ * Logical team IDs used as `srProteam` values in the SR v1 schema.
+ *
+ * These are the values stored in the game's `cPbu.WBbd` (proteam) field.  They
+ * are **not** contiguous record indices into the `ttOk` team table — that table
+ * is ordered alphabetically while these IDs follow the original EA NHL team
+ * numbering (with gaps for defunct/relocated franchises).
+ *
+ * This constant is intentionally a **bitemporal truth** — the EA numbering
+ * hasn't changed since 2014 and won't change (the game is frozen).  It's not
+ * used at runtime (the seed script bakes these values into the mapping table),
+ * but it lives here because the proteam numbering is *the* non-obvious
+ * piece of domain knowledge that every maintainer of the seed pipeline will
+ * need to understand.  The alternative — rediscovering it from a mule export
+ * each time — is slower and more error-prone.  See `roster_db.rs::team_info`
+ * in the mule repo for the source of truth.
+ */
+export const NHL_LOGICAL_TEAM_IDS = new Map<string, number>([
+  ["ANA", 1],  // Anaheim
+  ["BOS", 2],  // Boston
+  ["BUF", 3],  // Buffalo
+  ["CGY", 5],  // Calgary
+  ["CAR", 6],  // Carolina
+  ["CHI", 7],  // Chicago
+  ["COL", 8],  // Colorado
+  ["CBJ", 9],  // Columbus
+  ["DAL", 10], // Dallas
+  ["DET", 11], // Detroit
+  ["EDM", 12], // Edmonton
+  ["FLA", 13], // Florida
+  ["LAK", 14], // Los Angeles
+  ["MIN", 15], // Minnesota
+  ["MTL", 16], // Montreal
+  ["NSH", 17], // Nashville
+  ["NJD", 18], // New Jersey
+  ["NYI", 19], // NY Islanders
+  ["NYR", 20], // NY Rangers
+  ["OTT", 21], // Ottawa
+  ["PHI", 22], // Philadelphia
+  ["PIT", 24], // Pittsburgh
+  ["SJS", 25], // San Jose
+  ["STL", 27], // St. Louis
+  ["TBL", 28], // Tampa Bay
+  ["TOR", 29], // Toronto
+  ["VAN", 30], // Vancouver
+  ["VGK", 31], // Vegas
+  ["WPG", 32], // Winnipeg
+  ["WSH", 33], // Washington
+  ["SEA", 228], // Seattle
+  ["UTA", 229], // Utah
+]);
 
 /**
  * Build an SR v1 roster document from the WR state.
