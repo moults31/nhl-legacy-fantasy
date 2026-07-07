@@ -51,14 +51,21 @@ export interface BuildRosterOptions {
 }
 
 /**
- * Logical team IDs used by the mule's internal roster database.
+ * Logical team IDs used as `srProteam` values in the SR v1 schema.
  *
- * These are the values stored in the `cPbu.WBbd` (proteam) field.  They are
- * **not** contiguous record indices into the `ttOk` team table — that table
+ * These are the values stored in the game's `cPbu.WBbd` (proteam) field.  They
+ * are **not** contiguous record indices into the `ttOk` team table — that table
  * is ordered alphabetically while these IDs follow the original EA NHL team
  * numbering (with gaps for defunct/relocated franchises).
  *
- * Source: `roster_db.rs::team_info` match arms.
+ * This constant is intentionally a **bitemporal truth** — the EA numbering
+ * hasn't changed since 2014 and won't change (the game is frozen).  It's not
+ * used at runtime (the seed script bakes these values into the mapping table),
+ * but it lives here because the proteam numbering is *the* non-obvious
+ * piece of domain knowledge that every maintainer of the seed pipeline will
+ * need to understand.  The alternative — rediscovering it from a mule export
+ * each time — is slower and more error-prone.  See `roster_db.rs::team_info`
+ * in the mule repo for the source of truth.
  */
 export const NHL_LOGICAL_TEAM_IDS = new Map<string, number>([
   ["ANA", 1],  // Anaheim

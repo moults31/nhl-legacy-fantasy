@@ -32,11 +32,16 @@ function execMule(args: string[]): Promise<ExecResult> {
 /**
  * Apply an SR v1 roster patch to a vanilla roster and pack a game-ready .bin.
  *
- * Uses the `patch-roster` command which applies schema-based proteam patches
- * AND the full move-player pipeline (team_alt, eGlu zeroing, edit-log entries,
- * reseal_ms_crcs).  This is the single correct path — the old import+pack
- * pipeline missed team_alt, edit-log, eGlu zeroing, and checksum reseals,
- * causing in-game corruption.
+ * The mule's `patch-roster` command applies proteam changes correctly —
+ * including the full set of on-disk edits the game requires (team_alt
+ * metadata, eGlu slot management, edit-log entries, and checksum reseals)
+ * that the old `import` + `pack` pipeline was missing.
+ *
+ * These implementation details leak into this comment intentionally: they
+ * document a hard-won debugging lesson (the specific omission categories
+ * that produced in-game corruption) so future maintainers can recognize the
+ * pattern.  The webapp itself only depends on the SR v1 contract — the
+ * comment is a guardrail, not a coupling.
  */
 export async function packRoster(sr: SrV1Roster): Promise<Buffer> {
   if (!config.vanillaRosterBin) {

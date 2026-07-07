@@ -1,7 +1,12 @@
 -- Seed data from NHL Legacy 26 Trade Deadline Update
 -- ZZ/ZZZ/ZZZZ placeholder records excluded
 -- Non-NHL teams excluded (only 32 NHL + SEA/UTA)
--- sr_proteam uses logical team IDs from roster_db.rs
+-- sr_proteam uses logical team IDs listed in spec-client/src/translator.ts
+--   (NHL_LOGICAL_TEAM_IDS).  The source-of-truth for these values is the game's
+--   frozen EA NHL team numbering, not any particular tool's implementation.
+--   The comment cites the spec-client constant rather than the mule source file
+--   because the spec-client is the canonical reference for the webapp's view of
+--   the proteam mapping — it's what seedingscripts should consult when rebuilding.
 -- Generated automatically -- DO NOT EDIT
 
 INSERT OR IGNORE INTO teams (slug, city, full_name, abbrev) VALUES ('anaheim', 'Anaheim', 'Anaheim Ducks', 'ANA');
