@@ -1,18 +1,31 @@
 import { dirname, join } from "node:path";
+import { homedir, platform } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function resolveXeniaDefault(): string {
+  if (process.env.XENIA_SAVE_ROOT) return process.env.XENIA_SAVE_ROOT;
+  if (platform() === "linux") {
+    return join(
+      homedir(),
+      ".steam/steam/steamapps/compatdata/3623314720/pfx/drive_c/users/steamuser/Documents/nhllegacy/B13EBABEBABEBABE/454109EC"
+    );
+  }
+  return join(
+    process.env.USERPROFILE ?? "C:/Users/galileo",
+    "Documents/nhllegacy/B13EBABEBABEBABE/454109EC"
+  );
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 3001),
   databaseUrl: process.env.DATABASE_URL ?? join(__dirname, "../data/dev.db"),
-  muleBinary: process.env.MULE_BINARY ?? join(__dirname, "../../../_local/nhl-db-studio-mule/target/release/roster-cli"),
-  vanillaRosterBin: process.env.VANILLA_ROSTER_BIN ?? join(__dirname, "../../../_local/vanilla-roster.bin"),
+  muleBinary: process.env.MULE_BINARY ?? join(__dirname, "../../../.cargo-bin/bin/roster-cli"),
+  vanillaRosterBin: process.env.VANILLA_ROSTER_BIN ?? join(__dirname, "../../../tests/fixtures/xbox/roster.bin"),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   rosterOutputDir: join(__dirname, "../data/rosters"),
-  /** Xenia save root — parent of 00000001/ and Headers/. */
-  xeniaSaveRoot: process.env.XENIA_SAVE_ROOT ??
-    join(process.env.USERPROFILE ?? "C:/Users/galileo", "Documents/nhllegacy/B13EBABEBABEBABE/454109EC"),
+  xeniaSaveRoot: process.env.XENIA_SAVE_ROOT ?? resolveXeniaDefault(),
 };
 
 export function assertConfig(): void {

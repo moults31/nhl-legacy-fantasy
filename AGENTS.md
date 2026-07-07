@@ -10,9 +10,13 @@ This is a TypeScript monorepo (pnpm workspaces + turbo):
   external spec repo.
 
 The spec repo lives at `https://github.com/moults31/nhl-legacy-roster-spec.git`
-and is consumed as a git path dependency. Do not copy its contents into this
-repo; update the git tag in `packages/spec-client/package.json` when moving to
-a new SR version.
+and is consumed as a **pnpm git dependency** (`#main` branch). Do not copy
+its contents into this repo; update the branch/tag in
+`packages/spec-client/package.json` when moving to a new SR version.
+
+The mule repo lives at `https://github.com/moults31/nhl-db-studio-mule.git`
+and is consumed as a **Cargo git dependency** (`main` branch). `scripts/setup.sh`
+runs `cargo install` to build the `roster-cli` binary into `.cargo-bin/`.
 
 ## Local reference material
 
@@ -20,6 +24,9 @@ Same policy as the predecessor repo:
 
 - Everything game/modding-related belongs under `/_local/` (gitignored).
 - Do not commit binaries, game assets, or third-party modding tool trees.
+  **Exception:** `tests/fixtures/xbox/` contains a small canonical roster .bin
+  (the 2026 trade deadline update) used by the test suite and as the default
+  `VANILLA_ROSTER_BIN`.  This is a controlled-size fixture, not a raw game dump.
 - No upstream source code from Modding Studio, `nhl-database-studio`, etc.
 
 ## Database
