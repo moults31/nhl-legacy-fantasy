@@ -1,11 +1,10 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { assertConfig, config } from "./config.js";
+import { config } from "./config.js";
 import { initDb } from "./db.js";
 import { registerRoutes } from "./routes.js";
 
 async function main() {
-  assertConfig();
   initDb();
 
   const app = Fastify({ logger: true });
