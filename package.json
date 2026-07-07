@@ -1,0 +1,22 @@
+{
+  "name": "nhl-legacy-fantasy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Webapp for building NHL Legacy Edition rosters from a stable webapp representation.",
+  "packageManager": "pnpm@10.23.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:seed": "pnpm --filter api db:seed",
+    "db:reset": "pnpm --filter api db:reset"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  }
+}
