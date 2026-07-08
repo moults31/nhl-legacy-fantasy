@@ -15,7 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "tsc --noEmit",
-    "test": "node --test dist/**/*.test.js"
+    "test": "find dist -name '*.test.js' -exec node --test {} +"
   },
   "dependencies": {
     "@moults31/nhl-legacy-roster-spec": "git+https://github.com/moults31/nhl-legacy-roster-spec.git#main",
