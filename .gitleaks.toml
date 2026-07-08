@@ -16,7 +16,7 @@ title = "nhl-legacy-fantasy gitleaks config"
     # Lockfiles — dependency hashes.
     "pnpm-lock.yaml",
     # Old Rust source from pre-clean-slate history (hex tables, not secrets).
-    "crates/",
+    "crates/**",
   ]
 
   # Allow known generic/false-positive patterns in source files.
