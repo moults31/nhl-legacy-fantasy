@@ -1,0 +1,24 @@
+# Gitleaks configuration for nhl-legacy-fantasy.
+# See https://github.com/gitleaks/gitleaks?tab=readme-ov-file#configuration
+
+title = "nhl-legacy-fantasy gitleaks config"
+
+[allowlist]
+  description = "Global allowlist for known false positives"
+
+  paths = [
+    # Example env file — contains placeholder values, not real secrets.
+    ".env.example",
+    # Seed SQL file — contains hardcoded player IDs and UUIDs, not secrets.
+    "apps/api/data/seed.sql",
+    # Test fixtures — canonical roster data, not secrets.
+    "tests/fixtures/**",
+    # Lockfiles — dependency hashes.
+    "pnpm-lock.yaml",
+  ]
+
+  # Allow known generic/false-positive patterns in source files.
+  regexes = [
+    # Example JWT/session tokens in test fixtures or seed data.
+    '''^[A-Za-z0-9+/]{40,}={0,2}$''',
+  ]
