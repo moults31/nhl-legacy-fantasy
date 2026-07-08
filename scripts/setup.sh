@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# CI runners don't have Rust; skip the mule build (not needed for lint/build/test).
+if [ -n "${CI:-}" ]; then
+  echo "[nlf] CI environment detected, skipping mule binary build"
+  exit 0
+fi
+
 # Build the mule CLI binary from the pinned git repo into a local directory.
 # Skip if the binary already exists (e.g. not a fresh install).
 
