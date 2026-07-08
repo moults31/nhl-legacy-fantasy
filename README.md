@@ -1,5 +1,10 @@
 # NHL Legacy Fantasy
 
+[![CI](https://github.com/moults31/nhl-legacy-fantasy/actions/workflows/ci.yml/badge.svg)](https://github.com/moults31/nhl-legacy-fantasy/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Node.js 20+](https://img.shields.io/badge/node-20%2B-green.svg)](https://nodejs.org/)
+[![pnpm 10+](https://img.shields.io/badge/pnpm-10%2B-orange.svg)](https://pnpm.io/)
+
 A webapp for building custom NHL Legacy Edition rosters from a stable webapp
 representation (WR), producing game-ready `.bin` save files via
 [`nhl-db-studio-mule`](https://github.com/moults31/nhl-db-studio-mule).
