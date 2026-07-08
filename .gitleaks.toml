@@ -19,10 +19,8 @@ title = "nhl-legacy-fantasy gitleaks config"
     "crates/**",
     # Old Cargo lockfile — dependency hashes, not secrets.
     "Cargo.lock",
-  ]
-
-  # Allow known generic/false-positive patterns in source files.
-  regexes = [
-    # Example JWT/session tokens in test fixtures or seed data.
-    '''^[A-Za-z0-9+/]{40,}={0,2}$''',
+    # Old tools directory — Python CRC analysis scripts, not secrets.
+    "tools/**",
+    # Old docs directory — markdown planning docs, not secrets.
+    "docs/**",
   ]
