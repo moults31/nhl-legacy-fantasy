@@ -6,21 +6,22 @@ title = "nhl-legacy-fantasy gitleaks config"
 [allowlist]
   description = "Global allowlist for known false positives"
 
+  # Paths use Go regex (not glob). Patterns are matched against file paths.
   paths = [
     # Example env file — contains placeholder values, not real secrets.
     ".env.example",
     # Seed SQL file — contains hardcoded player IDs and UUIDs, not secrets.
     "apps/api/data/seed.sql",
     # Test fixtures — canonical roster data, not secrets.
-    "tests/fixtures/**",
+    "tests/fixtures",
     # Lockfiles — dependency hashes.
     "pnpm-lock.yaml",
     # Old Rust source from pre-clean-slate history (hex tables, not secrets).
-    "crates/**",
+    "crates",
     # Old Cargo lockfile — dependency hashes, not secrets.
     "Cargo.lock",
     # Old tools directory — Python CRC analysis scripts, not secrets.
-    "tools/**",
+    "tools",
     # Old docs directory — markdown planning docs, not secrets.
-    "docs/**",
+    "docs",
   ]
