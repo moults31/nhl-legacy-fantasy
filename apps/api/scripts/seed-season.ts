@@ -137,11 +137,11 @@ console.log(`  ${(parsed.player_ratings ?? []).length} player rating records`);
 
 // Insert transactions
 const insertTxn = db.prepare(
-  "INSERT INTO season_transactions (record, day, event_index, sub_type, player_name, team_from_name, team_to_name, team_context_name, team_from_record, team_to_record) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "INSERT INTO season_transactions (record, day, event_index, sub_type, player_name, team_name, with_team_name) VALUES (?, ?, ?, ?, ?, ?, ?)",
 );
 const txnTx = db.transaction(() => {
   for (const t of parsed.transactions ?? []) {
-    insertTxn.run(t.record, t.day, t.event_index, t.sub_type, t.player_name ?? null, t.team_from_name ?? null, t.team_to_name ?? null, t.team_context_name ?? null, t.team_from_record ?? null, t.team_to_record ?? null);
+    insertTxn.run(t.record, t.day, t.event_index, t.sub_type, t.player_name ?? null, t.team_name ?? null, t.with_team_name ?? null);
   }
 });
 txnTx();

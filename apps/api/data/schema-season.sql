@@ -82,11 +82,8 @@ CREATE TABLE IF NOT EXISTS season_transactions (
   event_index INTEGER NOT NULL,
   sub_type INTEGER NOT NULL,
   player_name TEXT,
-  team_from_name TEXT,
-  team_to_name TEXT,
-  team_context_name TEXT,
-  team_from_record INTEGER,
-  team_to_record INTEGER
+  team_name TEXT,
+  with_team_name TEXT
 );
 
 DROP TABLE IF EXISTS season_user_teams;

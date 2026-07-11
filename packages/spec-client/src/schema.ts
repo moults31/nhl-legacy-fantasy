@@ -86,11 +86,8 @@ export const SeasonTransactionSchema = z.object({
   event_index: z.number().int(),
   sub_type: z.number().int(),
   player_name: z.string().nullable().optional(),
-  team_from_name: z.string().nullable().optional(),
-  team_to_name: z.string().nullable().optional(),
-  team_context_name: z.string().nullable().optional(),
-  team_from_record: z.number().int().nullable().optional(),
-  team_to_record: z.number().int().nullable().optional(),
+  team_name: z.string().nullable().optional(),
+  with_team_name: z.string().nullable().optional(),
 });
 
 export const SeasonUserTeamSchema = z.object({

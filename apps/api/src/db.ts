@@ -246,11 +246,8 @@ export interface SeasonTransactionRow {
   event_index: number;
   sub_type: number;
   player_name: string | null;
-  team_from_name: string | null;
-  team_to_name: string | null;
-  team_context_name: string | null;
-  team_from_record: number | null;
-  team_to_record: number | null;
+  team_name: string | null;
+  with_team_name: string | null;
 }
 
 export function getSeasonTransactions(database: Database.Database = getDb()): SeasonTransactionRow[] {
