@@ -21,9 +21,13 @@ import {
   getSeasonDay,
   getSeasonEvents,
   getSeasonGmStates,
+  getSeasonPerformance,
   getSeasonPlayers,
   getSeasonPlayersByProteam,
+  getSeasonSchedule,
   getSeasonTeams,
+  getSeasonTransactions,
+  getSeasonUserTeams,
 } from "./db.js";
 
 interface AssignPlayerParams {
@@ -195,5 +199,21 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/season/gm-states", async () => {
     return getSeasonGmStates();
+  });
+
+  app.get("/season/schedule", async () => {
+    return getSeasonSchedule();
+  });
+
+  app.get("/season/performance", async () => {
+    return getSeasonPerformance();
+  });
+
+  app.get("/season/transactions", async () => {
+    return getSeasonTransactions();
+  });
+
+  app.get("/season/user-teams", async () => {
+    return getSeasonUserTeams();
   });
 }

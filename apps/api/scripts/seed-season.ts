@@ -87,4 +87,70 @@ const gmTx = db.transaction(() => {
 gmTx();
 console.log(`  ${(parsed.gm_states ?? []).length} GM states`);
 
+// Insert schedule
+const insertSchedule = db.prepare(
+  "INSERT INTO season_schedule (game_index, day, team_pair, val1, val2, event_type, event_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+);
+const schedTx = db.transaction(() => {
+  for (const s of parsed.schedule ?? []) {
+    insertSchedule.run(s.game_index, s.day, s.team_pair ?? null, s.val1, s.val2, s.event_type, s.event_flag);
+  }
+});
+schedTx();
+console.log(`  ${(parsed.schedule ?? []).length} schedule entries`);
+
+// Insert performance
+const insertPerf = db.prepare(
+  "INSERT INTO season_performance (record, gm_first_name, gm_last_name, current_day, budget_score, performance_score, active, team_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+);
+const perfTx = db.transaction(() => {
+  for (const p of parsed.performance ?? []) {
+    insertPerf.run(p.record, p.gm_first_name, p.gm_last_name, p.current_day, p.budget_score, p.performance_score, p.active, p.team_index);
+  }
+});
+perfTx();
+console.log(`  ${(parsed.performance ?? []).length} performance entries`);
+
+// Insert player ratings
+const insertRating = db.prepare(
+  "INSERT OR REPLACE INTO season_player_ratings (record, field_id, value) VALUES (?, ?, ?)",
+);
+const ratingTx = db.transaction(() => {
+  for (const r of parsed.player_ratings ?? []) {
+    const base: Record<string, unknown> = r as unknown as Record<string, unknown>;
+    for (const [key, val] of Object.entries(base)) {
+      if (key === "record") continue;
+      if (typeof val === "number") {
+        insertRating.run(r.record, key, val);
+      }
+    }
+  }
+});
+ratingTx();
+console.log(`  ${(parsed.player_ratings ?? []).length} player rating records`);
+
+// Insert transactions
+const insertTxn = db.prepare(
+  "INSERT INTO season_transactions (record, day, player_id, team_from, team_to, event_index, sub_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+);
+const txnTx = db.transaction(() => {
+  for (const t of parsed.transactions ?? []) {
+    insertTxn.run(t.record, t.day, t.player_id, t.team_from, t.team_to, t.event_index, t.sub_type);
+  }
+});
+txnTx();
+console.log(`  ${(parsed.transactions ?? []).length} transactions`);
+
+// Insert user teams
+const insertUser = db.prepare(
+  "INSERT INTO season_user_teams (record, is_user, identifier, counter, games_played) VALUES (?, ?, ?, ?, ?)",
+);
+const userTx = db.transaction(() => {
+  for (const u of parsed.user_teams ?? []) {
+    insertUser.run(u.record, u.is_user ? 1 : 0, u.identifier, u.counter, u.games_played);
+  }
+});
+userTx();
+console.log(`  ${(parsed.user_teams ?? []).length} user team records`);
+
 console.log("Season seed complete.");

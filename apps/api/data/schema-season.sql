@@ -30,3 +30,51 @@ CREATE TABLE IF NOT EXISTS season_gm_states (
   gm_last_name TEXT NOT NULL,
   current_day INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS season_schedule (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game_index INTEGER NOT NULL,
+  day INTEGER NOT NULL,
+  team_pair INTEGER,
+  val1 INTEGER NOT NULL,
+  val2 INTEGER NOT NULL,
+  event_type INTEGER NOT NULL,
+  event_flag INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS season_performance (
+  record INTEGER PRIMARY KEY,
+  gm_first_name TEXT NOT NULL,
+  gm_last_name TEXT NOT NULL,
+  current_day INTEGER NOT NULL,
+  budget_score INTEGER NOT NULL,
+  performance_score INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 0,
+  team_index INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS season_player_ratings (
+  record INTEGER NOT NULL,
+  field_id TEXT NOT NULL,
+  value INTEGER NOT NULL,
+  PRIMARY KEY (record, field_id)
+);
+
+CREATE TABLE IF NOT EXISTS season_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  record INTEGER NOT NULL,
+  day INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  team_from INTEGER NOT NULL,
+  team_to INTEGER NOT NULL,
+  event_index INTEGER NOT NULL,
+  sub_type INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS season_user_teams (
+  record INTEGER PRIMARY KEY,
+  is_user INTEGER NOT NULL DEFAULT 0,
+  identifier INTEGER NOT NULL,
+  counter INTEGER NOT NULL,
+  games_played INTEGER NOT NULL DEFAULT 0
+);

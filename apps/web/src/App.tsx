@@ -42,6 +42,47 @@ interface SeasonGmState {
   current_day: number;
 }
 
+interface SeasonUserTeamData {
+  record: number;
+  is_user: number;
+  identifier: number;
+  counter: number;
+  games_played: number;
+}
+
+interface SeasonScheduleEntry {
+  id: number;
+  game_index: number;
+  day: number;
+  team_pair: number | null;
+  val1: number;
+  val2: number;
+  event_type: number;
+  event_flag: number;
+}
+
+interface SeasonPerformanceEntry {
+  record: number;
+  gm_first_name: string;
+  gm_last_name: string;
+  current_day: number;
+  budget_score: number;
+  performance_score: number;
+  active: number;
+  team_index: number;
+}
+
+interface SeasonTransactionEntry {
+  id: number;
+  record: number;
+  day: number;
+  player_id: number;
+  team_from: number;
+  team_to: number;
+  event_index: number;
+  sub_type: number;
+}
+
 const API_BASE = "/api";
 
 function App() {
@@ -60,6 +101,10 @@ function App() {
   const [seasonEvents, setSeasonEvents] = useState<SeasonEvent[]>([]);
   const [seasonGmStates, setSeasonGmStates] = useState<SeasonGmState[]>([]);
   const [selectedSeasonTeam, setSelectedSeasonTeam] = useState<number | null>(null);
+  const [seasonSchedule, setSeasonSchedule] = useState<SeasonScheduleEntry[]>([]);
+  const [seasonPerformance, setSeasonPerformance] = useState<SeasonPerformanceEntry[]>([]);
+  const [seasonUserTeams, setSeasonUserTeams] = useState<SeasonUserTeamData[]>([]);
+  const [seasonTxns, setSeasonTxns] = useState<SeasonTransactionEntry[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/teams`)
@@ -92,6 +137,22 @@ function App() {
     fetch(`${API_BASE}/season/gm-states`)
       .then((r) => r.json())
       .then(setSeasonGmStates)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/schedule`)
+      .then((r) => r.json())
+      .then(setSeasonSchedule)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/performance`)
+      .then((r) => r.json())
+      .then(setSeasonPerformance)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/user-teams`)
+      .then((r) => r.json())
+      .then(setSeasonUserTeams)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/transactions`)
+      .then((r) => r.json())
+      .then(setSeasonTxns)
       .catch(() => {});
   }, []);
 
@@ -216,6 +277,17 @@ function App() {
     () => seasonTeams.filter((t) => t.record < 32),
     [seasonTeams]
   );
+
+  const userTeamRecords = useMemo(
+    () => new Set(seasonUserTeams.filter((u) => u.is_user).map((u) => u.record)),
+    [seasonUserTeams]
+  );
+
+  const perfByRecord = useMemo(() => {
+    const map = new Map<number, SeasonPerformanceEntry>();
+    for (const p of seasonPerformance) map.set(p.record, p);
+    return map;
+  }, [seasonPerformance]);
 
   const sortEvents = useMemo(
     () => [...seasonEvents].sort((a, b) => a.day - b.day || a.id - b.id),
@@ -349,6 +421,14 @@ function App() {
                     <span className="player-count">
                       {seasonPlayersByProteam.get(team.record + 1)?.length ?? 0} players
                     </span>
+                    {userTeamRecords.has(team.record) && (
+                      <span className="user-badge">User</span>
+                    )}
+                    {perfByRecord.has(team.record) && (
+                      <span className="perf-badge" title={`Budget: ${(perfByRecord.get(team.record)!.budget_score / 1e6).toFixed(1)}M  Score: ${(perfByRecord.get(team.record)!.performance_score / 1e6).toFixed(1)}M`}>
+                        {(perfByRecord.get(team.record)!.performance_score / 1e6).toFixed(1)}M
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}
@@ -379,14 +459,121 @@ function App() {
               <p className="empty">No events yet.</p>
             ) : (
               <ul className="event-list">
-                {sortEvents.map((event) => (
+                {sortEvents.slice(0, 20).map((event) => (
                   <li key={event.id}>
                     <span className="event-day">Day {event.day}</span>
                     <span className="event-text">{event.text_key}</span>
                   </li>
                 ))}
+                {sortEvents.length > 20 && (
+                  <li className="event-more">+{sortEvents.length - 20} more events</li>
+                )}
               </ul>
             )}
+          </section>
+
+          <section>
+            <h2>Team Performance</h2>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th>GM</th>
+                  <th>Day</th>
+                  <th>Budget Score</th>
+                  <th>Perf Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {seasonPerformance
+                  .sort((a, b) => b.performance_score - a.performance_score)
+                  .map((p) => {
+                    const t = seasonTeamMap.get(p.record);
+                    return (
+                      <tr key={p.record}>
+                        <td>{t?.abbrev ?? `Team ${p.record}`}</td>
+                        <td>{p.gm_first_name} {p.gm_last_name}</td>
+                        <td>{p.current_day}</td>
+                        <td>{(p.budget_score / 1e6).toFixed(1)}M</td>
+                        <td>{(p.performance_score / 1e6).toFixed(1)}M</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </section>
+
+          <section>
+            <h2>Schedule ({seasonSchedule.length} games)</h2>
+            <div className="schedule-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Day</th>
+                    <th>V1</th>
+                    <th>V2</th>
+                    <th>Type</th>
+                    <th>Flag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seasonSchedule.slice(0, 50).map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.game_index}</td>
+                      <td>{s.day}</td>
+                      <td>{s.val1}</td>
+                      <td>{s.val2}</td>
+                      <td>{s.event_type}</td>
+                      <td>{s.event_flag}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {seasonSchedule.length > 50 && (
+              <p className="empty">Showing 50 of {seasonSchedule.length} games.</p>
+            )}
+          </section>
+
+          <section>
+            <h2>Transactions ({seasonTxns.length})</h2>
+            <div className="schedule-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Day</th>
+                    <th>Player</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seasonTxns.slice(0, 50).map((t, i) => (
+                    <tr key={i}>
+                      <td>{t.event_index}</td>
+                      <td>{t.day}</td>
+                      <td>{t.player_id}</td>
+                      <td>{t.team_from}</td>
+                      <td>{t.team_to}</td>
+                      <td>{t.sub_type}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="placeholder-section">
+            <h2>Standings (W-L-OTL-PTS)</h2>
+            <p className="empty">Standings computed from game results — coming soon.</p>
+          </section>
+
+          <section className="placeholder-section">
+            <h2>Depth Charts / Captaincy / Jersey Numbers</h2>
+            <p className="empty">Table identification in progress.</p>
           </section>
         </>
       )}

@@ -175,7 +175,81 @@ export function getSeasonEvents(database: Database.Database = getDb()): SeasonEv
 }
 
 export function getSeasonGmStates(database: Database.Database = getDb()): SeasonGmStateRow[] {
-  return database
-    .prepare<[], SeasonGmStateRow>("SELECT * FROM season_gm_states ORDER BY record")
-    .all();
+  return database.prepare<[], SeasonGmStateRow>(
+    "SELECT * FROM season_gm_states ORDER BY record"
+  ).all();
+}
+
+export interface SeasonScheduleRow {
+  id: number;
+  game_index: number;
+  day: number;
+  team_pair: number | null;
+  val1: number;
+  val2: number;
+  event_type: number;
+  event_flag: number;
+}
+
+export function getSeasonSchedule(database: Database.Database = getDb()): SeasonScheduleRow[] {
+  return database.prepare<[], SeasonScheduleRow>(
+    "SELECT * FROM season_schedule ORDER BY game_index"
+  ).all();
+}
+
+export interface SeasonPerformanceRow {
+  record: number;
+  gm_first_name: string;
+  gm_last_name: string;
+  current_day: number;
+  budget_score: number;
+  performance_score: number;
+  active: number;
+  team_index: number;
+}
+
+export function getSeasonPerformance(database: Database.Database = getDb()): SeasonPerformanceRow[] {
+  return database.prepare<[], SeasonPerformanceRow>(
+    "SELECT * FROM season_performance ORDER BY record"
+  ).all();
+}
+
+export function getSeasonRatingsForPlayer(record: number, database: Database.Database = getDb()): Record<string, number> {
+  const rows = database.prepare<[number], { field_id: string; value: number }>(
+    "SELECT field_id, value FROM season_player_ratings WHERE record = ?"
+  ).all(record);
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.field_id] = r.value;
+  return result;
+}
+
+export interface SeasonTransactionRow {
+  id: number;
+  record: number;
+  day: number;
+  player_id: number;
+  team_from: number;
+  team_to: number;
+  event_index: number;
+  sub_type: number;
+}
+
+export function getSeasonTransactions(database: Database.Database = getDb()): SeasonTransactionRow[] {
+  return database.prepare<[], SeasonTransactionRow>(
+    "SELECT * FROM season_transactions ORDER BY event_index"
+  ).all();
+}
+
+export interface SeasonUserTeamRow {
+  record: number;
+  is_user: number;
+  identifier: number;
+  counter: number;
+  games_played: number;
+}
+
+export function getSeasonUserTeams(database: Database.Database = getDb()): SeasonUserTeamRow[] {
+  return database.prepare<[], SeasonUserTeamRow>(
+    "SELECT * FROM season_user_teams ORDER BY record"
+  ).all();
 }

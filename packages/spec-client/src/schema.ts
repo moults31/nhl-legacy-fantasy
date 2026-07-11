@@ -51,6 +51,49 @@ export const SeasonGmStateSchema = z.object({
   current_day: z.number().int().nonnegative(),
 });
 
+export const SeasonScheduleEntrySchema = z.object({
+  game_index: z.number().int().nonnegative(),
+  day: z.number().int().nonnegative(),
+  team_pair: z.number().int().optional(),
+  val1: z.number().int(),
+  val2: z.number().int(),
+  event_type: z.number().int(),
+  event_flag: z.number().int(),
+});
+
+export const SeasonPerformanceSchema = z.object({
+  record: z.number().int().nonnegative(),
+  gm_first_name: z.string(),
+  gm_last_name: z.string(),
+  current_day: z.number().int().nonnegative(),
+  budget_score: z.number().int(),
+  performance_score: z.number().int(),
+  active: z.number().int(),
+  team_index: z.number().int(),
+});
+
+export const SeasonPlayerRatingSchema = z.object({
+  record: z.number().int().nonnegative(),
+}).catchall(z.number().int());
+
+export const SeasonTransactionSchema = z.object({
+  record: z.number().int().nonnegative(),
+  day: z.number().int().nonnegative(),
+  player_id: z.number().int().nonnegative(),
+  team_from: z.number().int(),
+  team_to: z.number().int(),
+  event_index: z.number().int(),
+  sub_type: z.number().int(),
+});
+
+export const SeasonUserTeamSchema = z.object({
+  record: z.number().int().nonnegative(),
+  is_user: z.boolean(),
+  identifier: z.number().int(),
+  counter: z.number().int(),
+  games_played: z.number().int(),
+});
+
 export const SeasonFullExportSchema = z.object({
   schema: z.literal("nhl-legacy-season/0.1"),
   current_day: z.number().int().nonnegative(),
@@ -58,10 +101,23 @@ export const SeasonFullExportSchema = z.object({
   players: z.array(SrV1PlayerSchema),
   calendar: z.array(SeasonCalendarEventSchema).optional().default([]),
   gm_states: z.array(SeasonGmStateSchema).optional().default([]),
+  schedule: z.array(SeasonScheduleEntrySchema).optional(),
+  performance: z.array(SeasonPerformanceSchema).optional(),
+  player_ratings: z.array(SeasonPlayerRatingSchema).optional(),
+  transactions: z.array(SeasonTransactionSchema).optional(),
+  user_teams: z.array(SeasonUserTeamSchema).optional(),
+  standings: z.unknown().optional(),
+  player_details: z.unknown().optional(),
 });
 
 export type SeasonCalendarEvent = z.infer<typeof SeasonCalendarEventSchema>;
 export type SeasonGmState = z.infer<typeof SeasonGmStateSchema>;
 export type SeasonFullExport = z.infer<typeof SeasonFullExportSchema>;
+
+export type SeasonScheduleEntry = z.infer<typeof SeasonScheduleEntrySchema>;
+export type SeasonPerformance = z.infer<typeof SeasonPerformanceSchema>;
+export type SeasonPlayerRating = z.infer<typeof SeasonPlayerRatingSchema>;
+export type SeasonTransaction = z.infer<typeof SeasonTransactionSchema>;
+export type SeasonUserTeam = z.infer<typeof SeasonUserTeamSchema>;
 
 export const SEASON_SCHEMA_TOKEN = "nhl-legacy-season/0.1" as const;
