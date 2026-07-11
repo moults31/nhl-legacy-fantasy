@@ -17,6 +17,14 @@ import {
 import { packRoster } from "./mule.js";
 
 import { installRoster } from "./install.js";
+import {
+  getSeasonDay,
+  getSeasonEvents,
+  getSeasonGmStates,
+  getSeasonPlayers,
+  getSeasonPlayersByProteam,
+  getSeasonTeams,
+} from "./db.js";
 
 interface AssignPlayerParams {
   playerId: string;
@@ -155,4 +163,37 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  // ── Season mode routes ──
+
+  app.get("/season/state", async () => {
+    return { current_day: getSeasonDay() };
+  });
+
+  app.get("/season/teams", async () => {
+    return getSeasonTeams();
+  });
+
+  app.get("/season/players", async () => {
+    return getSeasonPlayers();
+  });
+
+  app.get(
+    "/season/teams/:record/players",
+    async (request: FastifyRequest<{ Params: { record: string } }>) => {
+      const record = parseInt(request.params.record, 10);
+      if (isNaN(record)) return [];
+      // Season proteam = team record + 1 for the first ~32 teams
+      const proteam = record + 1;
+      return getSeasonPlayersByProteam(proteam);
+    }
+  );
+
+  app.get("/season/events", async () => {
+    return getSeasonEvents();
+  });
+
+  app.get("/season/gm-states", async () => {
+    return getSeasonGmStates();
+  });
 }

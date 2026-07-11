@@ -106,3 +106,76 @@ export function getTeamMappings(database: Database.Database = getDb()): Map<stri
     .all();
   return new Map(rows.map((r) => [r.wr_team_slug, r]));
 }
+
+// ── Season mode queries ──
+
+export interface SeasonTeamRow {
+  record: number;
+  city: string;
+  abbrev: string | null;
+  full_name: string | null;
+}
+
+export interface SeasonPlayerRow {
+  record: number;
+  first_name: string;
+  last_name: string;
+  proteam: number;
+}
+
+export interface SeasonEventRow {
+  id: number;
+  day: number;
+  text_key: string;
+}
+
+export interface SeasonGmStateRow {
+  record: number;
+  gm_first_name: string;
+  gm_last_name: string;
+  current_day: number;
+}
+
+export function getSeasonDay(database: Database.Database = getDb()): number {
+  const row = database
+    .prepare<[], { current_day: number }>("SELECT current_day FROM season_state LIMIT 1")
+    .get();
+  return row?.current_day ?? 0;
+}
+
+export function getSeasonTeams(database: Database.Database = getDb()): SeasonTeamRow[] {
+  return database
+    .prepare<[], SeasonTeamRow>("SELECT * FROM season_teams ORDER BY record")
+    .all();
+}
+
+export function getSeasonPlayers(database: Database.Database = getDb()): SeasonPlayerRow[] {
+  return database
+    .prepare<[], SeasonPlayerRow>(
+      "SELECT * FROM season_players WHERE last_name NOT IN ('ZZ', 'ZZZ', 'ZZZZ') ORDER BY last_name, first_name"
+    )
+    .all();
+}
+
+export function getSeasonPlayersByProteam(
+  proteam: number,
+  database: Database.Database = getDb()
+): SeasonPlayerRow[] {
+  return database
+    .prepare<[number], SeasonPlayerRow>(
+      "SELECT * FROM season_players WHERE proteam = ? AND last_name NOT IN ('ZZ', 'ZZZ', 'ZZZZ') ORDER BY last_name, first_name"
+    )
+    .all(proteam);
+}
+
+export function getSeasonEvents(database: Database.Database = getDb()): SeasonEventRow[] {
+  return database
+    .prepare<[], SeasonEventRow>("SELECT * FROM season_events ORDER BY day, id")
+    .all();
+}
+
+export function getSeasonGmStates(database: Database.Database = getDb()): SeasonGmStateRow[] {
+  return database
+    .prepare<[], SeasonGmStateRow>("SELECT * FROM season_gm_states ORDER BY record")
+    .all();
+}

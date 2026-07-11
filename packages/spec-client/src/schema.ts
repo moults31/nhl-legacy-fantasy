@@ -35,3 +35,33 @@ export type SrV1Player = z.infer<typeof SrV1PlayerSchema>;
 export type SrV1Roster = z.infer<typeof SrV1RosterSchema>;
 
 export const SR_V1_SCHEMA_TOKEN = "nhl-legacy-roster/0.1" as const;
+
+// ── Season v1 schema (`nhl-legacy-season/0.1`) ──
+
+export const SeasonCalendarEventSchema = z.object({
+  record: z.number().int().nonnegative(),
+  day: z.number().int().nonnegative(),
+  text_key: z.string(),
+});
+
+export const SeasonGmStateSchema = z.object({
+  record: z.number().int().nonnegative(),
+  gm_first_name: z.string(),
+  gm_last_name: z.string(),
+  current_day: z.number().int().nonnegative(),
+});
+
+export const SeasonFullExportSchema = z.object({
+  schema: z.literal("nhl-legacy-season/0.1"),
+  current_day: z.number().int().nonnegative(),
+  teams: z.array(SrV1TeamSchema),
+  players: z.array(SrV1PlayerSchema),
+  calendar: z.array(SeasonCalendarEventSchema).optional().default([]),
+  gm_states: z.array(SeasonGmStateSchema).optional().default([]),
+});
+
+export type SeasonCalendarEvent = z.infer<typeof SeasonCalendarEventSchema>;
+export type SeasonGmState = z.infer<typeof SeasonGmStateSchema>;
+export type SeasonFullExport = z.infer<typeof SeasonFullExportSchema>;
+
+export const SEASON_SCHEMA_TOKEN = "nhl-legacy-season/0.1" as const;

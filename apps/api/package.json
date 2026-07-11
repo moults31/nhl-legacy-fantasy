@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "test": "find dist -name '*.test.js' -exec node --test {} +",
     "db:seed": "tsx scripts/seed.ts",
+    "db:seed-season": "tsx scripts/seed-season.ts",
     "db:reset": "rm -f data/dev.db && pnpm db:seed"
   },
   "dependencies": {
