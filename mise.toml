@@ -1,0 +1,42 @@
+[tools]
+node = "22"
+pnpm = "10"
+
+[tasks.install]
+description = "Install workspace dependencies (also builds mule CLI via postinstall)"
+run = "pnpm install"
+
+[tasks.build]
+description = "Build all workspace packages"
+run = "pnpm build"
+depends = ["install"]
+
+[tasks.dev]
+description = "Start all apps in dev mode (turbo)"
+run = "pnpm dev"
+depends = ["build"]
+
+[tasks."dev:api"]
+description = "Start backend in dev mode with default roster fixture"
+run = "VANILLA_ROSTER_BIN=${VANILLA_ROSTER_BIN:-tests/fixtures/xbox/roster.bin} pnpm --filter @nlf/api dev"
+
+[tasks."dev:web"]
+description = "Start frontend in dev mode"
+run = "pnpm --filter @nlf/web dev"
+
+[tasks.lint]
+description = "Typecheck and lint all packages"
+run = "pnpm lint"
+
+[tasks.test]
+description = "Run all tests"
+run = "pnpm test"
+depends = ["build"]
+
+[tasks."db:seed"]
+description = "Seed the dev database"
+run = "pnpm db:seed"
+
+[tasks."db:reset"]
+description = "Delete and re-seed the dev database"
+run = "pnpm db:reset"

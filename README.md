@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/moults31/nhl-legacy-fantasy/actions/workflows/ci.yml/badge.svg)](https://github.com/moults31/nhl-legacy-fantasy/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Node.js 20+](https://img.shields.io/badge/node-20%2B-green.svg)](https://nodejs.org/)
+[![Node.js 22+](https://img.shields.io/badge/node-22%2B-green.svg)](https://nodejs.org/)
 [![pnpm 10+](https://img.shields.io/badge/pnpm-10%2B-orange.svg)](https://pnpm.io/)
 
 A webapp for building custom NHL Legacy Edition rosters from a stable webapp
@@ -41,27 +41,32 @@ packages/
 
 ## Prerequisites
 
-- Node.js 20+
-- pnpm 10+ (managed by `packageManager`)
-- `nhl-db-studio-mule` binary installed and on `PATH`
+- [mise](https://mise.jdx.dev/) — manages Node.js, pnpm, and task scripts
+- Rust toolchain (`cargo`) — needed to build the mule CLI binary
 - A vanilla NHL Legacy roster `.bin` file
 
 ## Quick start
 
 ```bash
-# Install dependencies and build workspace packages
-pnpm install
-pnpm --filter @nlf/spec-client build
-pnpm --filter @nlf/api db:seed
+# Install pinned tools and workspace dependencies
+mise trust
+mise install
+mise run install
+
+# Build packages and seed the database
+mise run build
+mise run db:seed
 
 # Terminal 1: backend
-VANILLA_ROSTER_BIN=/path/to/vanilla/roster.bin pnpm --filter @nlf/api dev
+mise run dev:api
 
 # Terminal 2: frontend
-pnpm --filter @nlf/web dev
+mise run dev:web
 ```
 
 Open http://localhost:5173.
+
+List all available commands: `mise tasks ls`
 
 ## Environment variables
 
@@ -76,16 +81,20 @@ Open http://localhost:5173.
 ## Scripts
 
 ```bash
-pnpm dev            # start all apps in dev mode (turbo)
-pnpm build          # build all apps
-pnpm db:seed        # seed dev database
-pnpm db:reset       # delete and re-seed dev database
+mise run dev            # start all apps in dev mode (turbo)
+mise run dev:api        # start backend only
+mise run dev:web       # start frontend only
+mise run build          # build all apps
+mise run lint           # typecheck all packages
+mise run test           # run tests
+mise run db:seed        # seed dev database
+mise run db:reset       # delete and re-seed dev database
 ```
 
 ## Testing
 
 ```bash
-pnpm --filter @nlf/spec-client test
+mise run test
 ```
 
 ## Versioning the producer seam
