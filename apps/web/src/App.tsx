@@ -530,7 +530,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {seasonSchedule.slice(0, 50).map((s) => (
+                  {seasonSchedule.map((s) => (
                     <tr key={s.id}>
                       <td>{s.game_index}</td>
                       <td>{scheduleTeamName(s.home_team ?? null)}</td>
@@ -542,9 +542,6 @@ function App() {
                 </tbody>
               </table>
             </div>
-            {seasonSchedule.length > 50 && (
-              <p className="empty">Showing 50 of {seasonSchedule.length} games.</p>
-            )}
           </section>
 
           <section>
@@ -562,7 +559,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {seasonTxns.slice(0, 50).map((t, i) => (
+                  {seasonTxns.map((t, i) => (
                     <tr key={i}>
                       <td>{t.event_index}</td>
                       <td>{t.day}</td>

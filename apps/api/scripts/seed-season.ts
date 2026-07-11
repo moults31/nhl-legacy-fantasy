@@ -95,11 +95,11 @@ console.log(`  ${(parsed.gm_states ?? []).length} GM states`);
 
 // Insert schedule
 const insertSchedule = db.prepare(
-  "INSERT INTO season_schedule (game_index, day, team_pair, val1, val2, event_type, event_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "INSERT INTO season_schedule (game_index, day, home_team, away_team, home_goals, away_goals, val1, val2, event_type, event_flag, is_future) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 );
 const schedTx = db.transaction(() => {
   for (const s of parsed.schedule ?? []) {
-    insertSchedule.run(s.game_index, s.day, s.team_pair ?? null, s.val1, s.val2, s.event_type, s.event_flag);
+    insertSchedule.run(s.game_index, s.day, s.home_team ?? null, s.away_team ?? null, s.home_goals, s.away_goals, s.val1, s.val2, s.event_type, s.event_flag, s.is_future ? 1 : 0);
   }
 });
 schedTx();

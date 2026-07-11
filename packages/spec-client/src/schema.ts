@@ -54,11 +54,15 @@ export const SeasonGmStateSchema = z.object({
 export const SeasonScheduleEntrySchema = z.object({
   game_index: z.number().int().nonnegative(),
   day: z.number().int().nonnegative(),
-  team_pair: z.number().int().optional(),
-  val1: z.number().int(),
-  val2: z.number().int(),
-  event_type: z.number().int(),
-  event_flag: z.number().int(),
+  home_team: z.number().int().nullable().optional(),
+  away_team: z.number().int().nullable().optional(),
+  home_goals: z.number().int().default(0),
+  away_goals: z.number().int().default(0),
+  val1: z.number().int().default(0),
+  val2: z.number().int().default(0),
+  event_type: z.number().int().default(0),
+  event_flag: z.number().int().default(0),
+  is_future: z.boolean().default(false),
 });
 
 export const SeasonPerformanceSchema = z.object({
@@ -109,6 +113,7 @@ export const SeasonFullExportSchema = z.object({
   player_ratings: z.array(SeasonPlayerRatingSchema).optional(),
   transactions: z.array(SeasonTransactionSchema).optional(),
   user_teams: z.array(SeasonUserTeamSchema).optional(),
+  user_team_indices: z.array(z.number().int().nonnegative()).optional(),
   standings: z.unknown().optional(),
   player_details: z.unknown().optional(),
 });

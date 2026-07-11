@@ -196,11 +196,15 @@ export interface SeasonScheduleRow {
   id: number;
   game_index: number;
   day: number;
-  team_pair: number | null;
+  home_team: number | null;
+  away_team: number | null;
+  home_goals: number;
+  away_goals: number;
   val1: number;
   val2: number;
   event_type: number;
   event_flag: number;
+  is_future: number;
 }
 
 export function getSeasonSchedule(database: Database.Database = getDb()): SeasonScheduleRow[] {
