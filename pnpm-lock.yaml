@@ -80,8 +80,8 @@ importers:
   packages/spec-client:
     dependencies:
       '@moults31/nhl-legacy-roster-spec':
-        specifier: git+https://github.com/moults31/nhl-legacy-roster-spec.git#feature/season-schema
-        version: https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/8bd62d55358c80d15c5350f20a18a8d9b7c22f81
+        specifier: git+https://github.com/moults31/nhl-legacy-roster-spec.git#main
+        version: https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/97f2d24bdc143fa4c712a0bc7d629a413d34ef23
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -970,8 +970,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@moults31/nhl-legacy-roster-spec@https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/8bd62d55358c80d15c5350f20a18a8d9b7c22f81':
-    resolution: {tarball: https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/8bd62d55358c80d15c5350f20a18a8d9b7c22f81}
+  '@moults31/nhl-legacy-roster-spec@https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/97f2d24bdc143fa4c712a0bc7d629a413d34ef23':
+    resolution: {tarball: https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/97f2d24bdc143fa4c712a0bc7d629a413d34ef23}
     version: 1.0.0
 
   '@pinojs/redact@0.4.0':
@@ -3359,7 +3359,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@moults31/nhl-legacy-roster-spec@https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/8bd62d55358c80d15c5350f20a18a8d9b7c22f81': {}
+  '@moults31/nhl-legacy-roster-spec@https://codeload.github.com/moults31/nhl-legacy-roster-spec/tar.gz/97f2d24bdc143fa4c712a0bc7d629a413d34ef23': {}
 
   '@pinojs/redact@0.4.0': {}
 
