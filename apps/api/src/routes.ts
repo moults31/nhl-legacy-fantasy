@@ -221,4 +221,17 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get("/season/user-team-indices", async () => {
     return getSeasonUserTeamIndices();
   });
+
+  // Serve tweet key lookup
+  app.get("/season/tweet-labels", async (_request, reply) => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const data = fs.readFileSync(
+      path.join(__dirname, "../data/tweet_keys.json"),
+      "utf-8"
+    );
+    return reply.type("application/json").send(JSON.parse(data));
+  });
 }

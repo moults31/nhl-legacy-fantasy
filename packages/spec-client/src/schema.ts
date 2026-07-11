@@ -79,11 +79,14 @@ export const SeasonPlayerRatingSchema = z.object({
 export const SeasonTransactionSchema = z.object({
   record: z.number().int().nonnegative(),
   day: z.number().int().nonnegative(),
-  player_id: z.number().int().nonnegative(),
-  team_from: z.number().int(),
-  team_to: z.number().int(),
   event_index: z.number().int(),
   sub_type: z.number().int(),
+  player_name: z.string().nullable().optional(),
+  team_from_name: z.string().nullable().optional(),
+  team_to_name: z.string().nullable().optional(),
+  team_context_name: z.string().nullable().optional(),
+  team_from_record: z.number().int().nullable().optional(),
+  team_to_record: z.number().int().nullable().optional(),
 });
 
 export const SeasonUserTeamSchema = z.object({

@@ -62,15 +62,19 @@ CREATE TABLE IF NOT EXISTS season_player_ratings (
   PRIMARY KEY (record, field_id)
 );
 
+DROP TABLE IF EXISTS season_transactions;
 CREATE TABLE IF NOT EXISTS season_transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   record INTEGER NOT NULL,
   day INTEGER NOT NULL,
-  player_id INTEGER NOT NULL,
-  team_from INTEGER NOT NULL,
-  team_to INTEGER NOT NULL,
   event_index INTEGER NOT NULL,
-  sub_type INTEGER NOT NULL
+  sub_type INTEGER NOT NULL,
+  player_name TEXT,
+  team_from_name TEXT,
+  team_to_name TEXT,
+  team_context_name TEXT,
+  team_from_record INTEGER,
+  team_to_record INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS season_user_teams (

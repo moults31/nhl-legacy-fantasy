@@ -72,11 +72,14 @@ interface SeasonTransactionEntry {
   id: number;
   record: number;
   day: number;
-  player_id: number;
-  team_from: number;
-  team_to: number;
   event_index: number;
   sub_type: number;
+  player_name: string | null;
+  team_from_name: string | null;
+  team_to_name: string | null;
+  team_context_name: string | null;
+  team_from_record: number | null;
+  team_to_record: number | null;
 }
 
 const API_BASE = "/api";
@@ -101,6 +104,7 @@ function App() {
   const [seasonPerformance, setSeasonPerformance] = useState<SeasonPerformanceEntry[]>([]);
   const [seasonTxns, setSeasonTxns] = useState<SeasonTransactionEntry[]>([]);
   const [userTeamIndices, setUserTeamIndices] = useState<number[]>([]);
+  const [tweetLabels, setTweetLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch(`${API_BASE}/teams`)
@@ -149,6 +153,10 @@ function App() {
     fetch(`${API_BASE}/season/user-team-indices`)
       .then((r) => r.json())
       .then(setUserTeamIndices)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/tweet-labels`)
+      .then((r) => r.json())
+      .then(setTweetLabels)
       .catch(() => {});
   }, []);
 
@@ -290,15 +298,8 @@ function App() {
     [seasonEvents]
   );
 
-  function humanizeTextKey(key: string): string {
-    // TXT_TWEET_NEWS_TRADE_4 -> "Trade News"
-    // TXT_TWEET_PREVIEW_STARTING_GOALIES_13 -> "Preview: Starting Goalies"
-    return key
-      .replace(/^TXT_TWEET_/, "")
-      .replace(/_\d+$/, "")
-      .split("_")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(" ");
+  function tweetText(key: string): string {
+    return tweetLabels[key] ?? key;
   }
 
   function scheduleTeamName(record: number | null): string {
@@ -474,7 +475,7 @@ function App() {
                 {sortEvents.slice(0, 20).map((event) => (
                   <li key={event.id}>
                     <span className="event-day">Day {event.day}</span>
-                    <span className="event-text">{humanizeTextKey(event.text_key)}</span>
+                    <span className="event-text">{tweetText(event.text_key)}</span>
                   </li>
                 ))}
                 {sortEvents.length > 20 && (
@@ -565,10 +566,10 @@ function App() {
                     <tr key={i}>
                       <td>{t.event_index}</td>
                       <td>{t.day}</td>
-                      <td>{t.player_id}</td>
-                      <td>{t.team_from}</td>
-                      <td>{t.team_to}</td>
-                      <td>{t.sub_type}</td>
+                      <td>{t.player_name ?? `#${t.record}`}</td>
+                      <td>{t.team_from_name ?? "?"}</td>
+                      <td>{t.team_to_name ?? "?"}</td>
+                      <td>{t.sub_type === 7 ? "Trade-Out" : t.sub_type === 6 ? "Trade-In" : t.sub_type === 8 ? "Signing" : t.sub_type === 16 ? "Extend" : `sub${t.sub_type}`}</td>
                     </tr>
                   ))}
                 </tbody>
