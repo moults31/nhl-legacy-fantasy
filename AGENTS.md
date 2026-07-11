@@ -1,5 +1,18 @@
 # Agent notes
 
+## Tool management
+
+This project uses [mise](https://mise.jdx.dev/) to pin tool versions and
+define task commands. Always use mise to run project commands instead of
+calling pnpm/turbo directly.
+
+- `mise tasks ls` — list available tasks
+- `mise run <task>` — run a named task (e.g. `mise run build`, `mise run test`)
+- `mise x -- <command>` — run an ad-hoc command with tool shims active
+
+Never run `pnpm`, `turbo`, or `tsx` directly. Always prefix with `mise run`
+or `mise x --`.
+
 ## Project shape
 
 This is a TypeScript monorepo (pnpm workspaces + turbo):
