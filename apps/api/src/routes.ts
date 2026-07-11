@@ -17,6 +17,19 @@ import {
 import { packRoster } from "./mule.js";
 
 import { installRoster } from "./install.js";
+import {
+  getSeasonDay,
+  getSeasonEvents,
+  getSeasonGmStates,
+  getSeasonPerformance,
+  getSeasonPlayers,
+  getSeasonPlayersByProteam,
+  getSeasonSchedule,
+  getSeasonTeams,
+  getSeasonTransactions,
+  getSeasonUserTeamIndices,
+  getSeasonUserTeams,
+} from "./db.js";
 
 interface AssignPlayerParams {
   playerId: string;
@@ -155,4 +168,70 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  // ── Season mode routes ──
+
+  app.get("/season/state", async () => {
+    return { current_day: getSeasonDay() };
+  });
+
+  app.get("/season/teams", async () => {
+    return getSeasonTeams();
+  });
+
+  app.get("/season/players", async () => {
+    return getSeasonPlayers();
+  });
+
+  app.get(
+    "/season/teams/:record/players",
+    async (request: FastifyRequest<{ Params: { record: string } }>) => {
+      const record = parseInt(request.params.record, 10);
+      if (isNaN(record)) return [];
+      // Season proteam = team record + 1 for the first ~32 teams
+      const proteam = record + 1;
+      return getSeasonPlayersByProteam(proteam);
+    }
+  );
+
+  app.get("/season/events", async () => {
+    return getSeasonEvents();
+  });
+
+  app.get("/season/gm-states", async () => {
+    return getSeasonGmStates();
+  });
+
+  app.get("/season/schedule", async () => {
+    return getSeasonSchedule();
+  });
+
+  app.get("/season/performance", async () => {
+    return getSeasonPerformance();
+  });
+
+  app.get("/season/transactions", async () => {
+    return getSeasonTransactions();
+  });
+
+  app.get("/season/user-teams", async () => {
+    return getSeasonUserTeams();
+  });
+
+  app.get("/season/user-team-indices", async () => {
+    return getSeasonUserTeamIndices();
+  });
+
+  // Serve tweet key lookup
+  app.get("/season/tweet-labels", async (_request, reply) => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const data = fs.readFileSync(
+      path.join(__dirname, "../data/tweet_keys.json"),
+      "utf-8"
+    );
+    return reply.type("application/json").send(JSON.parse(data));
+  });
 }

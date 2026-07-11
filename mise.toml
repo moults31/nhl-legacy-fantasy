@@ -37,6 +37,10 @@ depends = ["build"]
 description = "Seed the dev database"
 run = "pnpm db:seed"
 
+[tasks."db:seed-season"]
+description = "Seed the dev database with season mode data"
+run = "pnpm db:seed-season"
+
 [tasks."db:reset"]
 description = "Delete and re-seed the dev database"
 run = "pnpm db:reset"

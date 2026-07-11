@@ -18,7 +18,7 @@
     "test": "find dist -name '*.test.js' -exec node --test {} +"
   },
   "dependencies": {
-    "@moults31/nhl-legacy-roster-spec": "git+https://github.com/moults31/nhl-legacy-roster-spec.git#main",
+    "@moults31/nhl-legacy-roster-spec": "git+https://github.com/moults31/nhl-legacy-roster-spec.git#feature/season-schema",
     "zod": "^3.24.1"
   },
   "devDependencies": {
