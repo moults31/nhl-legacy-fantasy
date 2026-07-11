@@ -27,6 +27,7 @@ import {
   getSeasonSchedule,
   getSeasonTeams,
   getSeasonTransactions,
+  getSeasonUserTeamIndices,
   getSeasonUserTeams,
 } from "./db.js";
 
@@ -215,5 +216,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/season/user-teams", async () => {
     return getSeasonUserTeams();
+  });
+
+  app.get("/season/user-team-indices", async () => {
+    return getSeasonUserTeamIndices();
   });
 }

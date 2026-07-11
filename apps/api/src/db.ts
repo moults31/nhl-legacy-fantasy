@@ -143,6 +143,18 @@ export function getSeasonDay(database: Database.Database = getDb()): number {
   return row?.current_day ?? 0;
 }
 
+export function getSeasonUserTeamIndices(database: Database.Database = getDb()): number[] {
+  const row = database
+    .prepare<[], { user_team_indices: string }>("SELECT user_team_indices FROM season_state LIMIT 1")
+    .get();
+  if (!row?.user_team_indices) return [];
+  try {
+    return JSON.parse(row.user_team_indices);
+  } catch {
+    return [];
+  }
+}
+
 export function getSeasonTeams(database: Database.Database = getDb()): SeasonTeamRow[] {
   return database
     .prepare<[], SeasonTeamRow>("SELECT * FROM season_teams ORDER BY record")

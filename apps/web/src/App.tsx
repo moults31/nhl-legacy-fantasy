@@ -42,23 +42,19 @@ interface SeasonGmState {
   current_day: number;
 }
 
-interface SeasonUserTeamData {
-  record: number;
-  is_user: number;
-  identifier: number;
-  counter: number;
-  games_played: number;
-}
-
 interface SeasonScheduleEntry {
   id: number;
   game_index: number;
   day: number;
-  team_pair: number | null;
+  home_team: number | null;
+  away_team: number | null;
+  home_goals: number;
+  away_goals: number;
   val1: number;
   val2: number;
   event_type: number;
   event_flag: number;
+  is_future: boolean;
 }
 
 interface SeasonPerformanceEntry {
@@ -103,8 +99,8 @@ function App() {
   const [selectedSeasonTeam, setSelectedSeasonTeam] = useState<number | null>(null);
   const [seasonSchedule, setSeasonSchedule] = useState<SeasonScheduleEntry[]>([]);
   const [seasonPerformance, setSeasonPerformance] = useState<SeasonPerformanceEntry[]>([]);
-  const [seasonUserTeams, setSeasonUserTeams] = useState<SeasonUserTeamData[]>([]);
   const [seasonTxns, setSeasonTxns] = useState<SeasonTransactionEntry[]>([]);
+  const [userTeamIndices, setUserTeamIndices] = useState<number[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/teams`)
@@ -146,13 +142,13 @@ function App() {
       .then((r) => r.json())
       .then(setSeasonPerformance)
       .catch(() => {});
-    fetch(`${API_BASE}/season/user-teams`)
-      .then((r) => r.json())
-      .then(setSeasonUserTeams)
-      .catch(() => {});
     fetch(`${API_BASE}/season/transactions`)
       .then((r) => r.json())
       .then(setSeasonTxns)
+      .catch(() => {});
+    fetch(`${API_BASE}/season/user-team-indices`)
+      .then((r) => r.json())
+      .then(setUserTeamIndices)
       .catch(() => {});
   }, []);
 
@@ -274,13 +270,13 @@ function App() {
   );
 
   const nhlSeasonTeams = useMemo(
-    () => seasonTeams.filter((t) => t.record < 32),
+    () => seasonTeams.filter((t) => t.record < 30),
     [seasonTeams]
   );
 
   const userTeamRecords = useMemo(
-    () => new Set(seasonUserTeams.filter((u) => u.is_user).map((u) => u.record)),
-    [seasonUserTeams]
+    () => new Set(userTeamIndices),
+    [userTeamIndices]
   );
 
   const perfByRecord = useMemo(() => {
@@ -293,6 +289,22 @@ function App() {
     () => [...seasonEvents].sort((a, b) => a.day - b.day || a.id - b.id),
     [seasonEvents]
   );
+
+  function humanizeTextKey(key: string): string {
+    // TXT_TWEET_NEWS_TRADE_4 -> "Trade News"
+    // TXT_TWEET_PREVIEW_STARTING_GOALIES_13 -> "Preview: Starting Goalies"
+    return key
+      .replace(/^TXT_TWEET_/, "")
+      .replace(/_\d+$/, "")
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  }
+
+  function scheduleTeamName(record: number | null): string {
+    if (record === null) return "?";
+    return seasonTeamMap.get(record)?.abbrev ?? `#${record}`;
+  }
 
   return (
     <div className="App">
@@ -462,7 +474,7 @@ function App() {
                 {sortEvents.slice(0, 20).map((event) => (
                   <li key={event.id}>
                     <span className="event-day">Day {event.day}</span>
-                    <span className="event-text">{event.text_key}</span>
+                    <span className="event-text">{humanizeTextKey(event.text_key)}</span>
                   </li>
                 ))}
                 {sortEvents.length > 20 && (
@@ -510,22 +522,20 @@ function App() {
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Day</th>
-                    <th>V1</th>
-                    <th>V2</th>
-                    <th>Type</th>
-                    <th>Flag</th>
+                    <th>Home</th>
+                    <th>Away</th>
+                    <th>Score</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {seasonSchedule.slice(0, 50).map((s) => (
                     <tr key={s.id}>
                       <td>{s.game_index}</td>
-                      <td>{s.day}</td>
-                      <td>{s.val1}</td>
-                      <td>{s.val2}</td>
-                      <td>{s.event_type}</td>
-                      <td>{s.event_flag}</td>
+                      <td>{scheduleTeamName(s.home_team ?? null)}</td>
+                      <td>{scheduleTeamName(s.away_team ?? null)}</td>
+                      <td>{s.home_goals}-{s.away_goals}</td>
+                      <td>{s.is_future ? "Future" : "Played"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -27,16 +27,22 @@ console.log(`Reading season JSON from ${jsonPath}`);
 const raw = JSON.parse(readFileSync(jsonPath, "utf-8"));
 const parsed = SeasonFullExportSchema.parse(raw);
 
-// Clear existing season data
-db.exec("DELETE FROM season_state");
-db.exec("DELETE FROM season_teams");
-db.exec("DELETE FROM season_players");
+// Clear existing season data (in correct FK order)
+db.exec("DELETE FROM season_player_ratings");
 db.exec("DELETE FROM season_events");
+db.exec("DELETE FROM season_transactions");
+db.exec("DELETE FROM season_schedule");
+db.exec("DELETE FROM season_performance");
+db.exec("DELETE FROM season_user_teams");
 db.exec("DELETE FROM season_gm_states");
+db.exec("DELETE FROM season_players");
+db.exec("DELETE FROM season_teams");
+db.exec("DELETE FROM season_state");
 
 // Insert state
-db.prepare("INSERT INTO season_state (current_day) VALUES (?)").run(
-  parsed.current_day,
+const uti = JSON.stringify(parsed.user_team_indices ?? []);
+db.prepare("INSERT INTO season_state (current_day, user_team_indices) VALUES (?, ?)").run(
+  parsed.current_day, uti,
 );
 
 // Insert teams

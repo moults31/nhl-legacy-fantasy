@@ -1,7 +1,9 @@
 -- Season mode tables (separate from roster WR tables).
 
+DROP TABLE IF EXISTS season_state;
 CREATE TABLE IF NOT EXISTS season_state (
-  current_day INTEGER NOT NULL DEFAULT 0
+  current_day INTEGER NOT NULL DEFAULT 0,
+  user_team_indices TEXT DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS season_teams (
