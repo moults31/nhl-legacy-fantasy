@@ -16,34 +16,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: jdx/mise-action@v3
         with:
-          node-version: 20
-          cache: pnpm
+          install: true
+          cache: true
 
       - run: git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-      - run: pnpm install --frozen-lockfile
+      - run: mise x -- pnpm install --frozen-lockfile
 
-      - run: pnpm lint
+      - run: mise run lint
 
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: jdx/mise-action@v3
         with:
-          node-version: 20
-          cache: pnpm
+          install: true
+          cache: true
 
       - run: git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-      - run: pnpm install --frozen-lockfile
+      - run: mise x -- pnpm install --frozen-lockfile
 
       - uses: actions/cache@v4
         with:
@@ -52,9 +48,9 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-
 
-      - run: pnpm build
+      - run: mise run build
 
-      - run: pnpm test
+      - run: mise run test
 
   gitleaks:
     runs-on: ubuntu-latest
